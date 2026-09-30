@@ -8,3 +8,11 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+
+# Dialyzer PLTs
+/priv/plts/
+
+# Devenv
+.devenv*
+devenv.local.nix
+.direnv
