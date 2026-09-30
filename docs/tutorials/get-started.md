@@ -167,7 +167,10 @@ You made a component with `<.choose>`, you found an unsafe test, and you
 made the test safe.
 
 - [Replace a cond block in a template](../how-to/replace-a-cond-block-in-a-template.md)
-  gives the steps to change a template of an application.
+  gives the steps to change a template of an application. It also shows
+  `<.switch>` and a lazy test.
+- [Render a result in a template](../how-to/render-a-result-in-a-template.md)
+  shows `<.result>`.
 - The page of `ShoddyPhoenix.ControlFlow` gives each rule of `choose/1`. Its
   section "Evaluation order" tells what a test must be.
 - [The design of ShoddyPhoenix](../explanation/design.md) tells why the

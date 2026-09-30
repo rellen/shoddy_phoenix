@@ -18,11 +18,17 @@ This template shows a spinner, an error or the results:
 
 ## The modules
 
-- `ShoddyPhoenix.ControlFlow` has `choose/1`, a function component that
-  renders the first branch with a truthy test. It gives a HEEx template a
-  readable alternative to a `<%= cond do %>` block. HEEx evaluates every
-  test on every render, so read the section "Evaluation order" of `choose/1`
-  before you use it.
+`ShoddyPhoenix.ControlFlow` has three function components for control flow
+in HEEx templates:
+
+- `choose/1` renders the first branch with a truthy test. It gives a
+  template a readable alternative to a `<%= cond do %>` block. HEEx evaluates
+  every test on every render, so read the section "Evaluation order" of
+  `choose/1` before you use it.
+- `switch/1` renders the first branch with a value that is equal to the value
+  of the component.
+- `result/1` renders `<:ok>` or `<:error>` for `{:ok, value}`, `:ok`,
+  `{:error, reason}` or `:error`.
 
 ## Installation
 
@@ -46,9 +52,9 @@ project, because it is an optional dependency. An application with HTML
 pages from `mix phx.new` 1.8.15 has it already. An older application can need
 the version requirement `"~> 1.2"` for `phoenix_live_view` in its `mix.exs`.
 
-To use `<.choose>` in each template, import `ShoddyPhoenix.ControlFlow` in
-the function `html_helpers/0` of `lib/my_app_web.ex`, next to your core
-components.
+To use the components in each template, import
+`ShoddyPhoenix.ControlFlow` in the function `html_helpers/0` of
+`lib/my_app_web.ex`, next to your core components.
 
 ShoddyPhoenix does not add Shoddy to your project. To use the functions of
 Shoddy, add `{:shoddy, github: "rellen/shoddy"}` to the list.
@@ -65,6 +71,7 @@ To learn the library, start with the tutorial:
 For one task, use a how-to guide:
 
 - [Replace a cond block in a template](docs/how-to/replace-a-cond-block-in-a-template.md)
+- [Render a result in a template](docs/how-to/render-a-result-in-a-template.md)
 
 For the facts about a function or a component, read the page of its module.
 
