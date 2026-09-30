@@ -46,16 +46,28 @@ a user. A project that lists `phoenix_live_view` gets
 ShoddyPhoenix to it. A project without `phoenix_live_view` can still compile
 ShoddyPhoenix, but it does not get that module.
 
-## The name choose
+## The names of the components
 
-`cond` is the natural name for the component. But HEEx compiles `<.cond>`
-into the capture `&cond/1`. `cond` is a special form, so the compiler
-rejects that capture with the error "invalid arguments for cond".
+`cond` is the natural name for `choose/1`. But HEEx compiles `<.cond>` into
+the capture `&cond/1`. `cond` is a special form, so the compiler rejects that
+capture with the error "invalid arguments for cond".
 
 The names `choose`, `when` and `otherwise`, and the attribute `test`, come
 from XSLT. XSLT uses `xsl:choose`, `xsl:when` with the attribute `test`, and
 `xsl:otherwise` for the same structure. The JSP Standard Tag Library uses
 the same names. A reader who knows one of these languages knows the names.
+
+`switch/1` has the name of the same structure in C and in JavaScript. A
+component with the name `case` compiles, but a reader can confuse it with
+the special form `case/2`, which matches patterns. `switch/1` compares
+values only.
+
+Some libraries of UI components also have a `switch/1` for a toggle. An
+application that imports such a library can import only some components of
+`ShoddyPhoenix.ControlFlow`, with the option `:only` of `import`.
+
+Each component names its fallback `<:otherwise>`, and each component
+accepts one of it at most. A reader then learns one word for one purpose.
 
 ## Why HEEx evaluates every test
 
@@ -65,34 +77,68 @@ conditions, and `cond` evaluates them one at a time.
 A function component receives values, not expressions. HEEx builds the
 attributes of each slot in the template of the caller, as plain map values.
 Then it calls `choose/1` with the list of slots. Thus each `test` already has
-a value when `choose/1` starts. The component cannot delay a test, and it
-cannot skip a test.
+a value when `choose/1` starts. The component cannot delay the evaluation of
+an expression, and it cannot skip it.
 
 The body of a slot is different. HEEx puts each body into a function, and
 the component calls only the function of the selected slot. Thus the bodies
 are lazy.
 
 This difference is the reason for the section "Evaluation order" in the
-documentation of `choose/1`. That section gives the two guards for a test
-that relies on an earlier test.
+documentation of `choose/1`. That section gives three guards for a test that
+relies on an earlier test.
+
+## Lazy tests
+
+A test can be a function of arity 0. HEEx still makes the function on each
+render, but the component calls it only when no earlier test is truthy.
+Thus a lazy test gives `choose/1` the order of `cond`, for one test.
+
+`Shoddy.coalesce/2` has the same rule for a function of arity 0 in its list.
+A person who knows that rule then knows the rule of `choose/1`.
+
+LiveView tracks a change of an assign inside such a function, as it does for
+a plain value. When the assign changes, LiveView renders the component again.
+
+## Values that need no guard
+
+`switch/1` compares one value with the value of each `<:case>`. A value of a
+case is usually a literal, such as `:loading`. A literal is cheap, and it
+never raises. Thus `switch/1` does not have the unsafe pattern of
+`choose/1`.
+
+`switch/1` compares with `===/2`, as `Shoddy.MapSets.toggle/2` and
+`Shoddy.coalesce/2` do. Thus the integer `1` and the float `1.0` are two
+different values.
+
+`result/1` evaluates one value, and it selects the slot with a pattern. It
+accepts the four forms of a result that `Shoddy.Result` accepts. For a value
+that is not a result, it raises `FunctionClauseError`, as most functions of
+`Shoddy.Result` do. Such a value is a defect in the program, and an error at
+the place of the defect is easier to find.
 
 ## No match renders nothing
 
 `cond` raises `CondClauseError` when no condition is true. But a template
 frequently shows a part only in some states, as the attribute `:if` does.
-Thus `<.choose>` renders nothing when no test is truthy and there is no
-`<:otherwise>` slot. To show a fallback, add an `<:otherwise>` slot.
+Thus `choose/1` and `switch/1` render nothing when no branch matches and
+there is no `<:otherwise>` slot. `result/1` renders nothing when the slot of
+the result is absent. To show a fallback, add the slot.
 
-## One otherwise slot at most
+A self-closing slot also renders nothing. A self-closing `<:when>` that
+matches thus hides the part for one case, and it stops the search.
 
-A slot declaration cannot limit the number of entries of a slot. Thus the
-component counts the `<:otherwise>` slots when it renders, and it raises
-`ArgumentError` for two or more. A render of each fallback would surprise
-the reader, and a selection of one fallback would hide a mistake.
+## One slot at most
+
+A slot declaration cannot limit the number of entries of a slot. Thus each
+component counts the entries of `<:otherwise>`, `<:ok>` and `<:error>` when it
+renders, and it raises `ArgumentError` for two or more. A render of each
+entry would surprise the reader, and a selection of one entry would hide a
+mistake.
 
 ## No whitespace
 
-The component selects the branch in plain Elixir. Each outcome returns one
-small template that contains only the selected body. Thus `<.choose>` adds
+Each component selects the branch in plain Elixir. Each outcome returns one
+small template that contains only the selected body. Thus a component adds
 no whitespace around the body. `Phoenix.Component.async_result/1` has the
 same shape.

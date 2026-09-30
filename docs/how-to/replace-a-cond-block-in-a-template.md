@@ -58,6 +58,19 @@ The result renders the same HTML:
 </.choose>
 ```
 
+If each condition compares one value with a constant, use `<.switch>`
+instead. It needs no guard, because it evaluates the value one time. For
+example, a block with the conditions `@status == :loading` and
+`@status == :failed` becomes this component:
+
+```heex
+<.switch value={@status}>
+  <:case value={:loading}><.spinner /></:case>
+  <:case value={:failed}><p class="error">The search failed.</p></:case>
+  <:otherwise><.results rows={@rows} /></:otherwise>
+</.switch>
+```
+
 ## Make each test safe
 
 `cond` stops at the first true condition. `<.choose>` evaluates every test
@@ -79,12 +92,16 @@ In this block, the second condition relies on the first condition to catch a
 ```
 
 In a `<.choose>`, the test `@user.admin?` raises `BadMapError` when `@user`
-is `nil`. Add a guard to such a test. Use one of these two forms:
+is `nil`. Add a guard to such a test. Use one of these three forms:
 
 ```heex
 <:when test={@user && @user.admin?}>Admin panel</:when>
 <:when :if={@user} test={@user.admin?}>Admin panel</:when>
+<:when test={fn -> @user.admin? end}>Admin panel</:when>
 ```
+
+The third form is a lazy test. `<.choose>` calls the function only when no
+earlier test is truthy, as `cond` does.
 
 Also examine the cost of each test. If a test is expensive, compute the
 value in the LiveView, and put it into an assign. Then use that assign in the
@@ -99,13 +116,12 @@ in that case.
 If the old block had no true clause, examine whether the page must show
 something when no condition is true. If it must, add an `<:otherwise>` slot.
 
-## Keep cond for some blocks
+## Keep case for patterns
 
-Do not change a block in these cases:
+`<.choose>` and `<.switch>` do not match patterns. For a result, such as
+`{:ok, user}` or `{:error, reason}`, use `<.result>`.
+[Render a result in a template](render-a-result-in-a-template.md) gives the
+steps.
 
-- One branch depends on another branch.
-- A branch needs pattern matching.
-- A test is expensive, and you cannot compute it in the LiveView.
-
-For a branch that needs pattern matching, use `case` in the template, or a
-function component with more than one clause.
+For another pattern, keep `case` in the template, or use a function
+component with more than one clause.
