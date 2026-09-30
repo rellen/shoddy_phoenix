@@ -42,6 +42,12 @@ Give `<.result>` the assign. Put `:if` on the component, because the value
 For `{:ok, user}`, `:let` binds `user`. For `{:error, reason}`, `:let` binds
 `reason`.
 
+`inspect/1` converts each reason into text, but that text is for a developer.
+Without `inspect/1`, HEEx renders only a string, an atom or a number, and it
+raises `Protocol.UndefinedError` for a map or a tuple. For an
+`Ecto.Changeset`, show a message, or show the errors of the form, in place of
+the reason.
+
 ## Render only one outcome
 
 Give only the slot that you need. The component renders nothing for the

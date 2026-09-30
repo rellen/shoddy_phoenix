@@ -534,6 +534,13 @@ defmodule ShoddyPhoenix.ControlFlowTest do
       assert html == "b"
     end
 
+    test "gives a case slot the argument nil" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.switch value={1}><:case :let={arg} value={1}>{inspect(arg)}</:case></.switch>") ==
+               "nil"
+    end
+
     test "compares with strict equality, so 1 and 1.0 differ" do
       for {value, expected} <- [{1, "integer"}, {1.0, "float"}] do
         assigns = %{value: value}
@@ -681,6 +688,21 @@ defmodule ShoddyPhoenix.ControlFlowTest do
       assert rendered_to_string(~H"<.result value={{:ok, 1}}><:error>e</:error></.result>") == ""
       assert rendered_to_string(~H"<.result value={:error}><:ok>o</:ok></.result>") == ""
       assert rendered_to_string(~H"<.result value={:ok}><:ok /><:error>e</:error></.result>") == ""
+    end
+
+    test "proves the docs: HEEx renders a reason that is a string, an atom or a number, and raises for others" do
+      for {reason, expected} <- [{"taken", "taken"}, {:timeout, "timeout"}, {42, "42"}] do
+        assigns = %{save: {:error, reason}}
+        assert rendered_to_string(~H"<.result value={@save}><:error :let={why}>{why}</:error></.result>") == expected
+      end
+
+      for reason <- [{:invalid, "x"}, %{errors: [name: "taken"]}] do
+        assigns = %{save: {:error, opaque(reason)}}
+
+        assert_raise Protocol.UndefinedError, fn ->
+          rendered_to_string(~H"<.result value={@save}><:error :let={why}>{why}</:error></.result>")
+        end
+      end
     end
 
     test "raises FunctionClauseError for a value that is not a result" do
@@ -974,6 +996,13 @@ defmodule ShoddyPhoenix.ControlFlowTest do
       assert_raise ArgumentError, ~r/<.each> does not accept a stream/, fn ->
         rendered_to_string(~H"<.each :let={user} items={@streams.users}>{inspect(user)}</.each>")
       end
+    end
+
+    test "gives the empty slot the argument nil" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.each :let={n} items={[]}>{n}<:empty :let={arg}>{inspect(arg)}</:empty></.each>") ==
+               "nil"
     end
 
     test "raises ArgumentError for two empty slots" do

@@ -150,9 +150,13 @@ as the focus of an input, can depend on how LiveView patches that HTML. Thus
 the documentation asks you to examine such a change in a browser, and it does
 not promise a result.
 
-## each and streams
+## each and LiveView streams
 
-`each/1` must know whether its items are empty before it renders them.
+`each/1` must know whether its items are empty before it renders them. An
+Elixir stream, such as the result of `Stream.map/2`, is a plain lazy
+enumerable, and `each/1` accepts it. A LiveView stream, such as
+`@streams.users`, is different.
+
 LiveView does not keep the items of a stream on the server after it renders
 them. LiveView also lets only a `for` comprehension read a stream. Thus
 `each/1` cannot know whether a stream is empty, and it raises

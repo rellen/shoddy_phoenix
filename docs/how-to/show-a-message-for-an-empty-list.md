@@ -1,8 +1,9 @@
 # Show a message for an empty list
 
 This guide shows a message in place of a list that has no items. It uses
-`ShoddyPhoenix.ControlFlow.each/1` for a list in an assign. For a stream, and
-for a long list that changes before its end, it uses `:for` and CSS.
+`ShoddyPhoenix.ControlFlow.each/1` for a list in an assign. For a long list
+that changes before its end, it uses `:for` with `:key`. For a LiveView
+stream, it uses CSS.
 
 Import `ShoddyPhoenix.ControlFlow` in your application first.
 [Replace a cond block in a template](replace-a-cond-block-in-a-template.md#import-the-component)
@@ -12,9 +13,9 @@ gives that step.
 
 | The items | The method |
 | --- | --- |
-| A list, a range or a map in an assign | `<.each>` with `<:empty>` |
+| A list, a range, a map or an Elixir stream in an assign | `<.each>` with `<:empty>` |
 | A long list that changes before its end | `:for` with `:key`, and `:if` |
-| A stream | `:for` in the stream container, and the CSS rule `:only-child` |
+| A LiveView stream, such as `@streams.users` | `:for` in the stream container, and the CSS rule `:only-child` |
 
 `<.each>` tracks the items by their position. When you add or remove an item
 before the end of the list, LiveView sends each later item again. A `:for`
@@ -55,7 +56,7 @@ Give each item a key with `:key`, and show the message with `:if`:
 </ul>
 ```
 
-## Use CSS for a stream
+## Use CSS for a LiveView stream
 
 LiveView does not keep the items of a stream on the server after it renders
 them. Thus the server cannot know whether a stream is empty, and `<.each>`
