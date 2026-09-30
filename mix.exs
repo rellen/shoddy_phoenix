@@ -55,6 +55,8 @@ defmodule ShoddyPhoenix.MixProject do
         "docs/tutorials/get-started.md",
         "docs/how-to/replace-a-cond-block-in-a-template.md",
         "docs/how-to/render-a-result-in-a-template.md",
+        "docs/how-to/wrap-content-only-when-a-condition-is-true.md",
+        "docs/how-to/show-a-message-for-an-empty-list.md",
         "docs/explanation/design.md",
         "docs/development.md"
       ],

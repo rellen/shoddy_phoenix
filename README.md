@@ -18,8 +18,8 @@ This template shows a spinner, an error or the results:
 
 ## The modules
 
-`ShoddyPhoenix.ControlFlow` has three function components for control flow
-in HEEx templates:
+`ShoddyPhoenix.ControlFlow` has five function components for control flow in
+HEEx templates:
 
 - `choose/1` renders the first branch with a truthy test. It gives a
   template a readable alternative to a `<%= cond do %>` block. HEEx evaluates
@@ -29,6 +29,13 @@ in HEEx templates:
   of the component.
 - `result/1` renders `<:ok>` or `<:error>` for `{:ok, value}`, `:ok`,
   `{:error, reason}` or `:error`.
+- `wrap_if/1` puts its content into a wrapper, such as a link, only when a
+  test is truthy. The wrapper must render the content one time.
+- `each/1` renders its content for each item of a list, or an `<:empty>`
+  slot for an empty list. It does not accept a stream.
+
+The documentation of each component gives the mistakes to avoid. Read it
+before you use the component.
 
 ## Installation
 
@@ -72,6 +79,8 @@ For one task, use a how-to guide:
 
 - [Replace a cond block in a template](docs/how-to/replace-a-cond-block-in-a-template.md)
 - [Render a result in a template](docs/how-to/render-a-result-in-a-template.md)
+- [Wrap content only when a condition is true](docs/how-to/wrap-content-only-when-a-condition-is-true.md)
+- [Show a message for an empty list](docs/how-to/show-a-message-for-an-empty-list.md)
 
 For the facts about a function or a component, read the page of its module.
 
