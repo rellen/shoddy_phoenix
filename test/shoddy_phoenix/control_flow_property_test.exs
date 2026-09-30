@@ -52,5 +52,83 @@ defmodule ShoddyPhoenix.ControlFlowPropertyTest do
         assert String.trim(html) == "same"
       end
     end
+
+    property "selects the same slot when some tests are functions of arity 0" do
+      check all(
+              values <- list_of(test_value(), max_length: 8),
+              lazy? <- list_of(boolean(), length: length(values))
+            ) do
+        tests =
+          values
+          |> Enum.zip(lazy?)
+          |> Enum.map(fn {value, lazy?} -> if lazy?, do: fn -> value end, else: value end)
+
+        assigns = %{tests: Enum.with_index(tests)}
+
+        html =
+          rendered_to_string(~H"""
+          <.choose>
+            <:when :for={{test, index} <- @tests} test={test}>{index}</:when>
+            <:otherwise>none</:otherwise>
+          </.choose>
+          """)
+
+        expected =
+          case Enum.find_index(values, & &1) do
+            nil -> "none"
+            index -> Integer.to_string(index)
+          end
+
+        assert html == expected
+      end
+    end
+  end
+
+  describe "switch/1" do
+    property "renders the first case with a value that is strictly equal, or the otherwise slot" do
+      check all(
+              value <- one_of([integer(0..3), float(min: 0.0, max: 3.0), atom(:alphanumeric)]),
+              cases <- list_of(one_of([integer(0..3), constant(1.0), atom(:alphanumeric)]), max_length: 8)
+            ) do
+        assigns = %{value: value, cases: Enum.with_index(cases)}
+
+        html =
+          rendered_to_string(~H"""
+          <.switch value={@value}>
+            <:case :for={{case_value, index} <- @cases} value={case_value}>{index}</:case>
+            <:otherwise>none</:otherwise>
+          </.switch>
+          """)
+
+        expected =
+          case Enum.find_index(cases, &(&1 === value)) do
+            nil -> "none"
+            index -> Integer.to_string(index)
+          end
+
+        assert html == expected
+      end
+    end
+  end
+
+  describe "result/1" do
+    property "passes the value of an ok result and the reason of an error result to the slot" do
+      check all(
+              tag <- member_of([:ok, :error]),
+              payload <- one_of([integer(), atom(:alphanumeric), boolean()])
+            ) do
+        assigns = %{result: {tag, payload}, payload: payload}
+
+        html =
+          rendered_to_string(~H"""
+          <.result value={@result}>
+            <:ok :let={value}>ok {value === @payload}</:ok>
+            <:error :let={reason}>error {reason === @payload}</:error>
+          </.result>
+          """)
+
+        assert html == "#{tag} true"
+      end
+    end
   end
 end
