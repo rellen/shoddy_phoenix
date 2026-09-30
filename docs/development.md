@@ -51,28 +51,37 @@ mix format && mix check --no-retry
 - ExDoc
 - Doctor, which examines whether each module and each public function has
   documentation and a spec
+- the compiler a second time, without the optional dependency
+  `phoenix_live_view`, in the directory `_build/no_optional_deps`
 
 The first run takes some minutes, because Dialyzer must first examine
 Phoenix and its dependencies. Dialyzer keeps the result in `priv/plts`, so
 the next runs are fast.
 
-## Add a function
+## Add a function or a component
 
-Put a function into ShoddyPhoenix only if the function needs Phoenix, or a
-dependency of Phoenix such as Plug. Put each other function into Shoddy.
+Put a function into ShoddyPhoenix only if the function needs Phoenix, a
+dependency of Phoenix such as Plug, or Phoenix LiveView. Put each other
+function into Shoddy.
 [The design of ShoddyPhoenix](explanation/design.md) tells why.
 
-Give each public function a `@doc` with examples, and a `@spec`.
+Give each public function a `@doc` with examples, and a `@spec`. Give each
+function component an `attr` or a `slot` declaration for each input, with a
+`doc:` option.
 
-The library has no public function yet. The change that adds the first
-public function must also change two thresholds in `.doctor.exs` to 100.
-The comment in that file tells why.
+`phoenix_live_view` is an optional dependency. Put a module that needs it
+inside `if Code.ensure_loaded?(Phoenix.Component) do`, as in
+`lib/shoddy_phoenix/control_flow.ex`. Without that dependency, the file then
+defines no module. `mix check` compiles the project without the dependency,
+and it fails for a warning.
 
 ## Write tests
 
 Give each module these tests:
 
-- A doctest for each example in its `@doc`.
+- For a function, a doctest for each example in its `@doc`.
+- For a function component, a test that renders each example of its `@doc`
+  with `Phoenix.LiveViewTest.rendered_to_string/1`.
 - A file with the suffix `_test.exs` in `test/`, with the usual ExUnit
   tests.
 - A file with the suffix `_property_test.exs` in `test/`, with property

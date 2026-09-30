@@ -57,16 +57,23 @@ above. A change that adds documentation in another style is not complete.
 ShoddyPhoenix is the companion library of Shoddy, at
 https://github.com/rellen/shoddy. Obey these rules for each new function:
 
-- Put a function into ShoddyPhoenix only if the function needs Phoenix, or a
-  dependency of Phoenix such as Plug.
+- Put a function into ShoddyPhoenix only if the function needs Phoenix, a
+  dependency of Phoenix such as Plug, or Phoenix LiveView.
 - Put each other function into Shoddy. Shoddy has no runtime dependencies,
   and it must never get Phoenix.
 - Obey the conventions of Shoddy. The file `docs/reference/conventions.md`
   of Shoddy gives them. For example, the first argument is the value that
   the function operates on.
 - Use the same terms as Shoddy, as rule 6 above tells.
-- Phoenix is the only runtime dependency. Do not add another runtime
-  dependency before you discuss it with the maintainer.
+- Phoenix is the only required runtime dependency. `phoenix_live_view` is
+  an optional dependency. Do not add another dependency before you discuss
+  it with the maintainer.
+- Put a module that needs `phoenix_live_view` inside
+  `if Code.ensure_loaded?(Phoenix.Component) do`. Then a project without
+  LiveView can still compile ShoddyPhoenix.
+- Test each function component with
+  `Phoenix.LiveViewTest.rendered_to_string/1`. Give each claim of its `@doc`
+  a test.
 
 `docs/explanation/design.md` gives the reasons for these rules.
 
@@ -152,9 +159,6 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
   `docs/development.md` gives the four types.
 - Run each example of a new document before you commit it. No test runs
   the examples of a document in `docs`.
-- The library has no public function yet. Thus two thresholds in
-  `.doctor.exs` are 0. Change them to 100 in the change that adds the first
-  public function. The comment in that file tells why.
 
 ## Code Style
 

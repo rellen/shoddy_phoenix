@@ -61,15 +61,19 @@ defmodule ShoddyPhoenix.MixProject do
         Reference: ~r"docs/reference/",
         Explanation: ~r"docs/explanation/",
         Development: ["docs/development.md"]
+      ],
+      groups_for_modules: [
+        Components: [ShoddyPhoenix.ControlFlow]
       ]
     ]
   end
 
-  # Phoenix is the only runtime dependency. Read `CLAUDE.md` before you add
-  # another.
+  # Phoenix is the only required runtime dependency. phoenix_live_view is
+  # optional. Read `CLAUDE.md` before you add a dependency.
   defp deps do
     [
       {:phoenix, "~> 1.8"},
+      {:phoenix_live_view, "~> 1.2", optional: true},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
