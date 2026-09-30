@@ -7,7 +7,8 @@
 # - format: `mix format --check-formatted`
 # - lint: `mix compile --warnings-as-errors --force`, `mix credo`,
 #   `mix sobelow --exit`, `mix deps.audit`, `mix deps.unlock --check-unused`,
-#   `mix docs` and `mix doctor`
+#   `mix docs`, `mix doctor`, and `mix compile --no-optional-deps
+#   --warnings-as-errors` in the build directory `_build/no_optional_deps`
 # - dialyzer: `mix dialyzer`
 # - test: `mix test`
 #
@@ -31,9 +32,9 @@
 # the job `all`, so a push to main with a failed check keeps the old site.
 #
 # The jobs run on the versions of `.tool-versions`. `devenv.nix` gives the same
-# versions, and `.claude/hooks/session-start.sh` reads `.tool-versions` for a
-# remote session. Keep `.tool-versions`, `devenv.nix` and this file in
-# agreement.
+# major and minor versions, and `.claude/hooks/session-start.sh` reads
+# `.tool-versions` for a remote session. Keep `.tool-versions`, `devenv.nix`
+# and this file in agreement.
 
 name: check
 
@@ -88,6 +89,12 @@ jobs:
         run: mix docs
       - if: ${{ !cancelled() }}
         run: mix doctor
+      # phoenix_live_view is an optional dependency. The project must also
+      # compile without it, with no warning.
+      - if: ${{ !cancelled() }}
+        env:
+          MIX_BUILD_ROOT: _build/no_optional_deps
+        run: mix compile --no-optional-deps --warnings-as-errors
       # The site of `mix docs`, for the job `pages`. The step runs only when each
       # step before it succeeded.
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
