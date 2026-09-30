@@ -52,6 +52,8 @@ defmodule ShoddyPhoenix.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "docs/tutorials/get-started.md",
+        "docs/how-to/replace-a-cond-block-in-a-template.md",
         "docs/explanation/design.md",
         "docs/development.md"
       ],
