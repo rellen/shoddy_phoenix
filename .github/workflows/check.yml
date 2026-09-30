@@ -1,0 +1,216 @@
+# The checks that run for a pull request and for a push to main.
+#
+# The checks run in parallel jobs. The slowest job gives the time of the
+# workflow, and not the sum of the jobs. The jobs run each tool of `mix check`,
+# with the command that `mix check` uses:
+#
+# - format: `mix format --check-formatted`
+# - lint: `mix compile --warnings-as-errors --force`, `mix credo`,
+#   `mix sobelow --exit`, `mix deps.audit`, `mix deps.unlock --check-unused`,
+#   `mix docs` and `mix doctor`
+# - dialyzer: `mix dialyzer`
+# - test: `mix test`
+#
+# A job compiles the project for one environment, so the tools that need the
+# same build share one job. The formatter compiles nothing, and it stays alone,
+# so a defect of format shows in a few seconds.
+#
+# The job `mutation` runs `mix test.mutation`, and it reports the result only.
+# It never makes the workflow fail. It runs only after the job `test`
+# succeeds. Muex runs no baseline test in a project that is not an umbrella
+# project. Thus, if the tests fail with no mutation, muex reports each mutant
+# as killed and gives a score of 100%. The job `test` stops that false score.
+#
+# The job `all` needs each job except `mutation` and `pages`, and it fails when
+# one of them does not succeed. Use the name of that job in a branch protection
+# rule.
+#
+# After a push to main, the job `pages` puts the site of `mix docs` on GitHub
+# Pages, at https://rellen.github.io/shoddy_phoenix/. The job `lint` makes the
+# site, so the site and the checks come from one build. The job `pages` needs
+# the job `all`, so a push to main with a failed check keeps the old site.
+#
+# The jobs run on the versions of `.tool-versions`. `devenv.nix` gives the same
+# versions, and `.claude/hooks/session-start.sh` reads `.tool-versions` for a
+# remote session. Keep `.tool-versions`, `devenv.nix` and this file in
+# agreement.
+
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The versions of `.tool-versions`.
+  OTP_VERSION: "28.3.3"
+  ELIXIR_VERSION: "1.19.5-otp-28"
+
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-elixir
+        with:
+          cache: format
+      - run: mix format --check-formatted
+
+  # The first step compiles the project. Each step after it runs also when a
+  # step before it fails, so one run reports each defect, as `mix check` does.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-elixir
+        with:
+          cache: lint
+      - run: mix compile --warnings-as-errors --force
+      - if: ${{ !cancelled() }}
+        run: mix credo
+      - if: ${{ !cancelled() }}
+        run: mix sobelow --exit
+      - if: ${{ !cancelled() }}
+        run: mix deps.audit
+      - if: ${{ !cancelled() }}
+        run: mix deps.unlock --check-unused
+      - if: ${{ !cancelled() }}
+        run: mix docs
+      - if: ${{ !cancelled() }}
+        run: mix doctor
+      # The site of `mix docs`, for the job `pages`. The step runs only when each
+      # step before it succeeded.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: doc
+
+  dialyzer:
+    name: dialyzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-elixir
+        with:
+          cache: dialyzer
+      - run: mix dialyzer
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-elixir
+        with:
+          cache: test
+      - run: mix test
+
+  # This job never fails:
+  #
+  # - The alias gives --fail-at 0, so a low score does not make it fail.
+  # - The step that runs muex has continue-on-error and a time limit. Thus a
+  #   crash or a timeout of muex does not make the job fail.
+  # - The summary script always exits with the status 0.
+  #
+  # The summary of the job shows the results. Each mutant that survives gets a
+  # warning annotation on its line of code.
+  #
+  # For a pull request, the job also posts the summary as a comment. The job
+  # keeps one comment for each pull request, and each run replaces the text
+  # of that comment. The comment names its commit, because a failed job
+  # `test` skips this job and leaves the comment of an earlier commit. A
+  # pull request from a fork gets a token that cannot write, so that step
+  # has continue-on-error. This job is the only job that can write to a pull
+  # request.
+  mutation:
+    name: mutation (report only)
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-elixir
+        with:
+          cache: mutation
+      - name: Run muex
+        continue-on-error: true
+        timeout-minutes: 15
+        run: mix test.mutation --format json --output _build/muex-report.json
+      - name: Write the summary
+        if: always()
+        run: elixir .github/scripts/muex_summary.exs _build/muex-report.json _build/muex-summary.md
+      - name: Post the summary on the pull request
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker="<!-- muex-report -->"
+          body="${marker}
+          $(cat _build/muex-summary.md)
+
+          This comment shows the result for commit ${SHA}. [The run](${RUN_URL}) has the full report."
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" -f body="$body" > /dev/null
+            echo "The job replaced the text of the comment ${id}."
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$body" > /dev/null
+            echo "The job posted a new comment."
+          fi
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: muex-report
+          path: _build/muex-report.json
+          if-no-files-found: ignore
+
+  all:
+    name: Erlang/OTP 28, Elixir 1.19
+    if: always()
+    needs: [format, lint, dialyzer, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a check does not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1
+      - run: echo "Each check succeeded."
+
+  # A person must turn Pages on in the settings of the repository, with GitHub
+  # Actions as the source. The token of a workflow cannot turn it on. See
+  # `docs/development.md`.
+  pages:
+    name: pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [all]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/configure-pages@v6
+      - id: deployment
+        uses: actions/deploy-pages@v5

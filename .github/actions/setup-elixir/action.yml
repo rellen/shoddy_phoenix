@@ -1,0 +1,47 @@
+# The setup of each Elixir job of `.github/workflows/check.yml`: Erlang and
+# Elixir of `.tool-versions`, the cache of the dependencies and of the build,
+# and `mix deps.get`.
+#
+# Each job gives its own name to the cache. A job that compiles nothing, such
+# as the formatter, then does not save a cache with no build for the other jobs.
+#
+# The key holds the commit, so each run saves the build of its commit, and the
+# next run compiles only the files that changed after it. A run with no cache
+# of its commit reads the latest cache of the same `mix.lock`, and then the
+# latest cache of the job.
+
+name: Set up Elixir
+description: Install Erlang and Elixir, read the cache, and get the dependencies.
+
+inputs:
+  cache:
+    description: The name of the cache of the job.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Erlang and Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{ env.OTP_VERSION }}
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+
+    # `mix.exs` puts the PLT of Dialyzer in `priv/plts`, and not in `_build`.
+    # Without `priv/plts` in the cache, each run of Dialyzer builds the PLT
+    # again, and that takes some minutes.
+    - name: Read the cache of the dependencies and of the build
+      uses: actions/cache@v6
+      with:
+        path: |
+          deps
+          _build
+          priv/plts
+        key: mix-${{ inputs.cache }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}-${{ github.sha }}
+        restore-keys: |
+          mix-${{ inputs.cache }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}-
+          mix-${{ inputs.cache }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+    - name: Get the dependencies
+      shell: bash
+      run: mix deps.get
