@@ -32,7 +32,7 @@ HEEx templates:
 - `wrap_if/1` puts its content into a wrapper, such as a link, only when a
   test is truthy. The wrapper must render the content one time.
 - `each/1` renders its content for each item of a list, or an `<:empty>`
-  slot for an empty list. It does not accept a stream.
+  slot for an empty list. It does not accept a LiveView stream.
 
 The documentation of each component gives the mistakes to avoid. Read it
 before you use the component.

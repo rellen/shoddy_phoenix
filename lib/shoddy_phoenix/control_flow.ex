@@ -31,7 +31,11 @@ if Code.ensure_loaded?(Phoenix.Component) do
     [The evaluation order](#choose/1-evaluation-order) tells how to write a
     test that is safe.
 
-    Each component adds no whitespace around the body that it renders. The
+    In this documentation, the content of a component is the markup between its
+    tags that is not in a named slot. The body of a slot is the markup between
+    the tags of that slot.
+
+    Each component adds no whitespace around the markup that it renders. The
     documentation of each component gives the mistakes to avoid. Read it before
     you use the component.
 
@@ -248,11 +252,15 @@ if Code.ensure_loaded?(Phoenix.Component) do
     A self-closing slot renders nothing. The component raises `ArgumentError`
     if it gets more than one `<:otherwise>` slot.
 
+    The argument of a `<:case>` slot and of the `<:otherwise>` slot is `nil`.
+
     Use this component when each branch compares one value with a constant.
     HEEx evaluates the `value` of each `<:case>` on each render, as it does for
     the tests of `choose/1`. A literal value, such as `:loading`, is cheap and
-    it never raises. Thus `switch/1` does not have the unsafe pattern of
-    `choose/1`.
+    it never raises. Thus, when each `<:case>` has a literal value, `switch/1`
+    does not have the unsafe pattern of `choose/1`. A value that reads an
+    assign, such as `@user.role`, must be cheap and total, as a test of
+    `choose/1` must be.
 
     ## Examples
 
@@ -281,7 +289,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     slot :case,
       required: true,
-      doc: "A branch. The component renders the first `<:case>` with an equal `value`." do
+      doc: "A branch. The component renders the first `<:case>` with an equal `value`. Its argument is `nil`." do
       attr :value, :any,
         required: true,
         doc: """
@@ -337,6 +345,11 @@ if Code.ensure_loaded?(Phoenix.Component) do
       <:error :let={reason}><p class="error">{reason}</p></:error>
     </.result>
     ```
+
+    In this example, the reason is a string. HEEx renders a string, an atom or
+    a number. For a tuple, a map or a struct, such as an `Ecto.Changeset`, it
+    raises `Protocol.UndefinedError`. For such a reason, render a message, or
+    render a field of the reason.
 
     This template shows a message only for an error:
 
@@ -492,23 +505,26 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     ## The value of items
 
-    `items` can be each finite enumerable, such as a list, a range or a map.
-    For a map, the argument is a `{key, value}` tuple. Elixir does not define
-    the order of the entries of a map. If the order is important, sort the map
-    into a list first.
+    `items` must be a finite enumerable, such as a list, a range or a map. A
+    lazy enumerable, such as the result of `Stream.map/2`, also works. The
+    component enumerates it one time for each render.
+
+    For a map, the argument is a `{key, value}` tuple, so write
+    `:let={{key, value}}`. Elixir does not define the order of the entries of a
+    map. If the order is important, sort the map into a list first.
 
     For a value that is not enumerable, such as `nil`, the component raises
     `Protocol.UndefinedError`. For a list that can be `nil`, write
     `items={@users || []}`.
 
-    > #### Streams do not work {: .warning}
+    > #### LiveView streams do not work {: .warning}
     >
-    > The component raises `ArgumentError` for a stream, such as
+    > The component raises `ArgumentError` for a LiveView stream, such as
     > `@streams.users`. LiveView does not keep the items of a stream on the
     > server after it renders them. Thus the component cannot know whether
     > the stream is empty.
 
-    For the empty state of a stream, use the CSS rule of the section "Handling
+    For the empty state of a LiveView stream, use the CSS rule of the section "Handling
     the empty case" in the documentation of `Phoenix.LiveView.stream/4`.
 
     ## Change tracking
@@ -535,11 +551,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
     """
     attr :items, :any,
       required: true,
-      doc: "A finite enumerable, such as a list. A stream is not permitted."
+      doc: "A finite enumerable, such as a list. A LiveView stream is not permitted."
 
     slot :inner_block, required: true, doc: "The content for each item. Its argument is the item."
 
-    slot :empty, doc: "The content when `items` has no items. Give one at most."
+    slot :empty,
+      doc: "The markup when `items` has no items. Its argument is `nil`. Give one at most."
 
     @spec each(map()) :: Rendered.t()
     # Phoenix.LiveView.LiveStream is a private struct of LiveView. If LiveView
