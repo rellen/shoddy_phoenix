@@ -16,3 +16,8 @@ ShoddyPhoenix has no release yet. The first release contains these changes:
   of the component.
 - Add `ShoddyPhoenix.ControlFlow.result/1`, a function component that
   renders `<:ok>` or `<:error>` for a result.
+- Add `ShoddyPhoenix.ControlFlow.wrap_if/1`, a function component that puts
+  its content into a wrapper only when a test is truthy.
+- Add `ShoddyPhoenix.ControlFlow.each/1`, a function component that renders
+  its content for each item of a list, or an `<:empty>` slot for an empty
+  list.
