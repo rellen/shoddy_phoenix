@@ -117,24 +117,97 @@ that is not a result, it raises `FunctionClauseError`, as most functions of
 `Shoddy.Result` do. Such a value is a defect in the program, and an error at
 the place of the defect is easier to find.
 
+## The wrapper of wrap_if gets the content
+
+A function component cannot put its content inside an element that the
+caller writes. Thus `wrap_if/1` gives its content to the `<:wrapper>` slot as
+the argument, and the wrapper calls `render_slot/1` with it. The template
+then contains the content one time only.
+
+This design has a cost. The component cannot examine the body of the
+wrapper. If the wrapper does not render its argument, the content
+disappears. If the wrapper renders it two times, the page contains it two
+times. No error occurs in these cases, so the documentation of `wrap_if/1`
+starts its section about the wrapper with a warning.
+
+The body of the wrapper is a slot, so it is lazy. It runs only when `test` is
+truthy. Thus the wrapper can use a value that exists only in that case, and
+it needs no guard.
+
+A self-closing slot renders nothing in each other component. A self-closing
+`<:wrapper />` is different, because it hides the content with no error.
+Thus `wrap_if/1` raises `ArgumentError` for it.
+
+## A change of the wrap_if test
+
+When `test` keeps its value, LiveView sends only the dynamic parts of the
+content that changed. When `test` changes, the component returns a different
+template, and LiveView sends the whole content again, with its static HTML.
+A test measured this with LiveView 1.2.12.
+
+The browser then gets new HTML for the content. A state in the browser, such
+as the focus of an input, can depend on how LiveView patches that HTML. Thus
+the documentation asks you to examine such a change in a browser, and it does
+not promise a result.
+
+## each and streams
+
+`each/1` must know whether its items are empty before it renders them.
+LiveView does not keep the items of a stream on the server after it renders
+them. LiveView also lets only a `for` comprehension read a stream. Thus
+`each/1` cannot know whether a stream is empty, and it raises
+`ArgumentError` with a message that names the problem.
+
+The documentation of `Phoenix.LiveView.stream/4` shows an empty state that
+the browser selects with the CSS rule `:only-child`. That method needs no
+information on the server.
+
+The struct of a stream is private to LiveView, and it has no documentation.
+`each/1` matches it with a pattern. If LiveView renames the struct, the
+compilation fails, and the check cannot disappear with no warning.
+
+## each tracks items by position
+
+A `:for` without `:key` tracks each item by its position in the list.
+`each/1` renders its items in a comprehension inside the component, and it
+tracks them in the same way. The caller cannot give `:key` to `each/1`,
+because LiveView accepts `:key` only together with `:for`.
+
+These sizes come from a list of 50 short items with LiveView 1.2.12. Each
+size is the number of bytes of the diff, printed with `inspect/2`:
+
+| Change | `:for` with `:key` | `:for` without `:key` | `each/1` |
+| --- | --- | --- | --- |
+| The first render | 1338 | 1338 | 2235 |
+| Add an item at the end | 51 | 51 | 109 |
+| Change one item | 51 | 51 | 67 |
+| Add an item at the start | 543 | 1281 | 1739 |
+| Remove the first item | 510 | 1233 | 1633 |
+
+`each/1` is thus a good choice for a short list, or for a list that changes
+only at its end. For a long list that changes before its end, the
+documentation recommends `:for` with `:key`.
+
 ## No match renders nothing
 
 `cond` raises `CondClauseError` when no condition is true. But a template
 frequently shows a part only in some states, as the attribute `:if` does.
 Thus `choose/1` and `switch/1` render nothing when no branch matches and
 there is no `<:otherwise>` slot. `result/1` renders nothing when the slot of
-the result is absent. To show a fallback, add the slot.
+the result is absent, and `each/1` renders nothing for no items when there
+is no `<:empty>` slot. To show a fallback, add the slot.
 
-A self-closing slot also renders nothing. A self-closing `<:when>` that
-matches thus hides the part for one case, and it stops the search.
+A self-closing slot also renders nothing, except for `<:wrapper />`. A
+self-closing `<:when>` that matches thus hides the part for one case, and it
+stops the search.
 
 ## One slot at most
 
 A slot declaration cannot limit the number of entries of a slot. Thus each
-component counts the entries of `<:otherwise>`, `<:ok>` and `<:error>` when it
-renders, and it raises `ArgumentError` for two or more. A render of each
-entry would surprise the reader, and a selection of one entry would hide a
-mistake.
+component counts the entries of `<:otherwise>`, `<:ok>`, `<:error>`,
+`<:wrapper>` and `<:empty>` when it renders, and it raises `ArgumentError` for
+two or more. A render of each entry would surprise the reader, and a
+selection of one entry would hide a mistake.
 
 ## No whitespace
 

@@ -171,6 +171,9 @@ made the test safe.
   `<.switch>` and a lazy test.
 - [Render a result in a template](../how-to/render-a-result-in-a-template.md)
   shows `<.result>`.
+- [Wrap content only when a condition is true](../how-to/wrap-content-only-when-a-condition-is-true.md)
+  and [Show a message for an empty list](../how-to/show-a-message-for-an-empty-list.md)
+  show `<.wrap_if>` and `<.each>`.
 - The page of `ShoddyPhoenix.ControlFlow` gives each rule of `choose/1`. Its
   section "Evaluation order" tells what a test must be.
 - [The design of ShoddyPhoenix](../explanation/design.md) tells why the
