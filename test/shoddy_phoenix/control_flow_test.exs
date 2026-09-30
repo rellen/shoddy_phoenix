@@ -9,6 +9,8 @@ defmodule ShoddyPhoenix.ControlFlowTest do
   # The type checker of Elixir can warn about a literal such as %{user: nil}
   # that a later expression uses as a map. This helper returns its argument,
   # and the type checker cannot see through it.
+  alias Phoenix.LiveView.Rendered
+
   defp opaque(value), do: Process.get({__MODULE__, :unset}, value)
 
   # This helper sends a message to the test process, and it returns its
@@ -18,13 +20,20 @@ defmodule ShoddyPhoenix.ControlFlowTest do
     value
   end
 
-  defp crash!, do: raise("this body must not run")
+  # This helper raises when a template calls it. The type checker cannot see
+  # that it always raises, so it does not warn about the templates that call it.
+  defp crash!, do: opaque(nil) || raise("this body must not run")
+
+  # These templates differ only in the kind of the test. The body does not use
+  # an assign, so only the test decides whether the component changed.
+  defp lazy_template(assigns), do: ~H"<.choose><:when test={fn -> @user end}>x</:when></.choose>"
+  defp plain_template(assigns), do: ~H"<.choose><:when test={@user}>x</:when></.choose>"
 
   # These components stand in for the components of the examples in the docs.
   defp spinner(assigns), do: ~H"<span>Loading</span>"
   defp results(assigns), do: ~H"<ul>{length(@rows)} rows</ul>"
 
-  describe "selection" do
+  describe "choose/1: selection" do
     test "renders the first slot with a truthy test, in source order" do
       assigns = %{}
 
@@ -84,7 +93,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
     end
   end
 
-  describe "fallbacks" do
+  describe "choose/1: fallbacks" do
     test "renders the otherwise slot when no test is truthy" do
       assigns = %{}
 
@@ -149,9 +158,27 @@ defmodule ShoddyPhoenix.ControlFlowTest do
         """)
       end
     end
+
+    test "renders nothing for a self-closing otherwise slot" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.choose><:when test={false}>a</:when><:otherwise /></.choose>") == ""
+    end
+
+    test "gives the otherwise slot the argument nil" do
+      assigns = %{}
+
+      assert rendered_to_string(
+               ~H"<.choose><:when test={false}>a</:when><:otherwise :let={arg}>{inspect(arg)}</:otherwise></.choose>"
+             ) == "nil"
+
+      assert rendered_to_string(
+               ~H"<.switch value={1}><:case value={2}>a</:case><:otherwise :let={arg}>{inspect(arg)}</:otherwise></.switch>"
+             ) == "nil"
+    end
   end
 
-  describe "slot features" do
+  describe "choose/1: slot features" do
     test "binds the value of the test with :let" do
       assigns = %{value: 42}
 
@@ -236,7 +263,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
     end
   end
 
-  describe "lazy bodies" do
+  describe "choose/1: lazy bodies" do
     test "runs only the body of the selected slot" do
       assigns = %{}
 
@@ -271,7 +298,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
     end
   end
 
-  describe "eager tests, as the section Evaluation order of the docs tells" do
+  describe "choose/1: eager tests, as the section Evaluation order of the docs tells" do
     test "evaluates every test, also after an earlier test matched" do
       assigns = %{}
 
@@ -329,7 +356,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
     end
   end
 
-  describe "the guards in the docs" do
+  describe "choose/1: the guards in the docs" do
     @users [
       {nil, "Sign in"},
       {%{admin?: true}, "Admin panel"},
@@ -369,9 +396,329 @@ defmodule ShoddyPhoenix.ControlFlowTest do
         assert html == expected
       end
     end
+
+    test "a lazy test prevents the error" do
+      for {user, expected} <- @users do
+        assigns = %{user: opaque(user)}
+
+        html =
+          rendered_to_string(~H"""
+          <.choose>
+            <:when test={is_nil(@user)}>Sign in</:when>
+            <:when test={fn -> @user.admin? end}>Admin panel</:when>
+            <:otherwise>Home</:otherwise>
+          </.choose>
+          """)
+
+        assert html == expected
+      end
+    end
   end
 
-  describe "whitespace" do
+  describe "choose/1: lazy tests" do
+    test "calls a function of arity 0 only when no earlier test is truthy" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.choose>
+          <:when test={fn -> mark(false) end}>a</:when>
+          <:when test={fn -> mark(:second) end}>b</:when>
+          <:when test={fn -> mark(:third) end}>c</:when>
+        </.choose>
+        """)
+
+      assert html == "b"
+      assert_received {:ran, false}
+      assert_received {:ran, :second}
+      refute_received {:ran, :third}
+    end
+
+    test "uses the result of the function as the argument of the slot" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.choose>
+          <:when :let={value} test={fn -> 42 end}>{value}</:when>
+        </.choose>
+        """)
+
+      assert html == "42"
+    end
+
+    test "treats a falsy result of the function as a falsy test" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.choose>
+          <:when test={fn -> nil end}>a</:when>
+          <:when test={fn -> false end}>b</:when>
+          <:otherwise>c</:otherwise>
+        </.choose>
+        """)
+
+      assert html == "c"
+    end
+
+    # The dynamic part of the template is nil when LiveView skips the component
+    # because no assign of the component changed.
+    test "proves the design page: an assign inside a lazy test is tracked like a plain value" do
+      for template <- [&lazy_template/1, &plain_template/1] do
+        changed = template.(%{user: 1, other: 2, __changed__: %{user: true}}).dynamic.(true)
+        unchanged = template.(%{user: 1, other: 2, __changed__: %{other: true}}).dynamic.(true)
+
+        assert [%Rendered{}] = changed
+        assert unchanged == [nil]
+      end
+    end
+
+    test "treats a function of another arity as a truthy value, and does not call it" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.choose>
+          <:when :let={value} test={fn _ -> crash!() end}>{is_function(value, 1)}</:when>
+        </.choose>
+        """)
+
+      assert html == "true"
+    end
+  end
+
+  describe "switch/1" do
+    test "renders the first case with an equal value, in source order" do
+      assigns = %{status: :done}
+
+      html =
+        rendered_to_string(~H"""
+        <.switch value={@status}>
+          <:case value={:loading}>a</:case>
+          <:case value={:done}>b</:case>
+          <:case value={:done}>c</:case>
+          <:otherwise>d</:otherwise>
+        </.switch>
+        """)
+
+      assert html == "b"
+    end
+
+    test "compares with strict equality, so 1 and 1.0 differ" do
+      for {value, expected} <- [{1, "integer"}, {1.0, "float"}] do
+        assigns = %{value: value}
+
+        html =
+          rendered_to_string(~H"""
+          <.switch value={@value}>
+            <:case value={1}>integer</:case>
+            <:case value={1.0}>float</:case>
+          </.switch>
+          """)
+
+        assert html == expected
+      end
+    end
+
+    test "renders the otherwise slot, or nothing, when no case matches" do
+      assigns = %{status: :unknown}
+
+      assert rendered_to_string(
+               ~H"<.switch value={@status}><:case value={:done}>a</:case><:otherwise>b</:otherwise></.switch>"
+             ) == "b"
+
+      assert rendered_to_string(~H"<.switch value={@status}><:case value={:done}>a</:case></.switch>") == ""
+    end
+
+    test "renders nothing for a self-closing case that matches, and stops the search" do
+      assigns = %{status: :done}
+
+      html =
+        rendered_to_string(~H"""
+        <.switch value={@status}>
+          <:case value={:done} />
+          <:case value={:done}>a</:case>
+          <:otherwise>b</:otherwise>
+        </.switch>
+        """)
+
+      assert html == ""
+    end
+
+    test "raises ArgumentError for two otherwise slots" do
+      assigns = %{}
+
+      assert_raise ArgumentError, "<.switch> accepts one <:otherwise> slot at most. It received 2.", fn ->
+        rendered_to_string(~H"""
+        <.switch value={:x}>
+          <:case value={:y}>a</:case>
+          <:otherwise>b</:otherwise>
+          <:otherwise>c</:otherwise>
+        </.switch>
+        """)
+      end
+    end
+
+    test "renders each branch of the first example in the docs" do
+      for {status, expected} <- [
+            {:loading, "<span>Loading</span>"},
+            {:failed, ~s(<p class="error">The search failed.</p>)},
+            {:done, "<ul>1 rows</ul>"}
+          ] do
+        assigns = %{status: status, rows: [1]}
+
+        html =
+          rendered_to_string(~H"""
+          <.switch value={@status}>
+            <:case value={:loading}><.spinner /></:case>
+            <:case value={:failed}><p class="error">The search failed.</p></:case>
+            <:otherwise><.results rows={@rows} /></:otherwise>
+          </.switch>
+          """)
+
+        assert html == expected
+      end
+    end
+
+    test "renders the :for example in the docs" do
+      assigns = %{step: :pay, steps: [cart: "Cart", pay: "Payment", ship: "Shipping"]}
+
+      html =
+        rendered_to_string(~H"""
+        <.switch value={@step}>
+          <:case :for={{step, label} <- @steps} value={step}>{label}</:case>
+        </.switch>
+        """)
+
+      assert html == "Payment"
+    end
+
+    test "removes a case with a falsy :if" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.switch value={:a}>
+          <:case :if={false} value={:a}>first</:case>
+          <:case value={:a}>second</:case>
+        </.switch>
+        """)
+
+      assert html == "second"
+    end
+
+    test "runs only the body of the selected case" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.switch value={:b}>
+          <:case value={:a}>{crash!()}</:case>
+          <:case value={:b}>ok</:case>
+          <:otherwise>{crash!()}</:otherwise>
+        </.switch>
+        """)
+
+      assert html == "ok"
+    end
+  end
+
+  describe "result/1" do
+    test "renders each form of a result with its argument" do
+      for {value, expected} <- [
+            {{:ok, "Ada"}, "ok &quot;Ada&quot;"},
+            {:ok, "ok nil"},
+            {{:error, :timeout}, "error :timeout"},
+            {:error, "error nil"}
+          ] do
+        assigns = %{value: value}
+
+        html =
+          rendered_to_string(~H"""
+          <.result value={@value}>
+            <:ok :let={ok_value}>ok {inspect(ok_value)}</:ok>
+            <:error :let={reason}>error {inspect(reason)}</:error>
+          </.result>
+          """)
+
+        assert html == expected
+      end
+    end
+
+    test "renders nothing when the slot of the result is absent or self-closing" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.result value={{:ok, 1}}><:error>e</:error></.result>") == ""
+      assert rendered_to_string(~H"<.result value={:error}><:ok>o</:ok></.result>") == ""
+      assert rendered_to_string(~H"<.result value={:ok}><:ok /><:error>e</:error></.result>") == ""
+    end
+
+    test "raises FunctionClauseError for a value that is not a result" do
+      for value <- [nil, {:ok, 1, 2}, {:other, 1}, "ok"] do
+        assigns = %{value: opaque(value)}
+
+        assert_raise FunctionClauseError, fn ->
+          rendered_to_string(~H"<.result value={@value}><:ok>o</:ok></.result>")
+        end
+      end
+    end
+
+    test "raises ArgumentError for two ok slots or two error slots" do
+      assigns = %{}
+
+      assert_raise ArgumentError, "<.result> accepts one <:ok> slot at most. It received 2.", fn ->
+        rendered_to_string(~H"<.result value={:error}><:ok>a</:ok><:ok>b</:ok><:error>c</:error></.result>")
+      end
+
+      assert_raise ArgumentError, "<.result> accepts one <:error> slot at most. It received 2.", fn ->
+        rendered_to_string(~H"<.result value={:ok}><:ok>a</:ok><:error>b</:error><:error>c</:error></.result>")
+      end
+    end
+
+    test "renders each branch of the first example in the docs" do
+      for {save, expected} <- [
+            {{:ok, %{name: "Ada"}}, "Saved Ada."},
+            {{:error, "The name is taken."}, ~s(<p class="error">The name is taken.</p>)}
+          ] do
+        assigns = %{save: save}
+
+        html =
+          rendered_to_string(~H"""
+          <.result value={@save}>
+            <:ok :let={user}>Saved {user.name}.</:ok>
+            <:error :let={reason}><p class="error">{reason}</p></:error>
+          </.result>
+          """)
+
+        assert html == expected
+      end
+    end
+
+    test "renders the :if example in the docs" do
+      for {save, expected} <- [{nil, ""}, {{:ok, 1}, ""}, {{:error, :taken}, "The save failed."}] do
+        assigns = %{save: save}
+
+        html =
+          rendered_to_string(~H"""
+          <.result :if={@save} value={@save}>
+            <:error>The save failed.</:error>
+          </.result>
+          """)
+
+        assert String.trim(html) == expected
+      end
+    end
+
+    test "runs only the body of the selected slot" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.result value={:ok}><:ok>ok</:ok><:error>{crash!()}</:error></.result>") ==
+               "ok"
+    end
+  end
+
+  describe "whitespace of each component" do
     test "adds no whitespace around the selected body" do
       assigns = %{}
 
@@ -384,6 +731,12 @@ defmodule ShoddyPhoenix.ControlFlowTest do
 
       assert rendered_to_string(~H"<span><.choose><:when test={false}>a</:when></.choose>!</span>") ==
                "<span>!</span>"
+
+      assert rendered_to_string(~H"<span><.switch value={1}><:case value={1}>a</:case></.switch>!</span>") ==
+               "<span>a!</span>"
+
+      assert rendered_to_string(~H"<span><.result value={:ok}><:ok>a</:ok></.result>!</span>") ==
+               "<span>a!</span>"
     end
   end
 
@@ -424,6 +777,13 @@ defmodule ShoddyPhoenix.ControlFlowTest do
 
       assert warnings =~
                ~s(missing required slot "when" for component ShoddyPhoenix.ControlFlow.choose/1)
+    end
+
+    test "warns about a case with no value" do
+      warnings = compile_warnings("NoValue", "<.switch value={1}><:case>a</:case></.switch>")
+
+      assert warnings =~
+               ~s(missing required attribute "value" in slot "case" for component ShoddyPhoenix.ControlFlow.switch/1)
     end
 
     test "proves the design page: a component with the name cond cannot compile" do
