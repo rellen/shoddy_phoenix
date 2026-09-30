@@ -65,8 +65,8 @@ defmodule ShoddyPhoenix.MixProject do
     ]
   end
 
-  # Phoenix is the only runtime dependency. Each other dependency is for
-  # development or for tests only. See `docs/explanation/design.md`.
+  # Phoenix is the only runtime dependency. Read `CLAUDE.md` before you add
+  # another.
   defp deps do
     [
       {:phoenix, "~> 1.8"},

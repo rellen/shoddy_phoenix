@@ -64,7 +64,7 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
 - Obey the conventions of Shoddy. The file `docs/reference/conventions.md`
   of Shoddy gives them. For example, the first argument is the value that
   the function operates on.
-- Use the same terms as Shoddy. For example, write "puts a value into".
+- Use the same terms as Shoddy, as rule 6 above tells.
 - Phoenix is the only runtime dependency. Do not add another runtime
   dependency before you discuss it with the maintainer.
 
