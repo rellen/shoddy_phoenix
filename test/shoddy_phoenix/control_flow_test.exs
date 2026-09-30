@@ -6,11 +6,14 @@ defmodule ShoddyPhoenix.ControlFlowTest do
   import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
   import ShoddyPhoenix.ControlFlow
 
+  alias Phoenix.LiveView.Diff
+  alias Phoenix.LiveView.Lifecycle
+  alias Phoenix.LiveView.Rendered
+  alias Phoenix.LiveView.Socket
+
   # The type checker of Elixir can warn about a literal such as %{user: nil}
   # that a later expression uses as a map. This helper returns its argument,
   # and the type checker cannot see through it.
-  alias Phoenix.LiveView.Rendered
-
   defp opaque(value), do: Process.get({__MODULE__, :unset}, value)
 
   # This helper sends a message to the test process, and it returns its
@@ -32,6 +35,32 @@ defmodule ShoddyPhoenix.ControlFlowTest do
   # These components stand in for the components of the examples in the docs.
   defp spinner(assigns), do: ~H"<span>Loading</span>"
   defp results(assigns), do: ~H"<ul>{length(@rows)} rows</ul>"
+
+  # These templates show what LiveView sends to the browser. The first render
+  # gives the fingerprints, and the second render gives the diff against them.
+  # Phoenix.LiveView.Diff is a private module of LiveView, so a change of
+  # LiveView can break this helper. Such a break tells that the docs about
+  # change tracking need a new examination.
+  defp second_diff(template, first_assigns, second_assigns, changed) do
+    socket = %Socket{}
+    first = template.(Map.put(first_assigns, :__changed__, nil))
+
+    {first_diff, prints, components} =
+      Diff.render(socket, first, Diff.new_fingerprints(), Diff.new_components())
+
+    second = template.(Map.put(second_assigns, :__changed__, changed))
+    {second_diff, _prints, _components} = Diff.render(socket, second, prints, components)
+    {inspect(first_diff, limit: :infinity), inspect(second_diff, limit: :infinity)}
+  end
+
+  defp profile_link(assigns) do
+    ~H"""
+    <.wrap_if test={@url}><:wrapper :let={content}><a href={@url}>{render_slot(content)}</a></:wrapper><span>{@name}</span> static text</.wrap_if>
+    """
+  end
+
+  defp list_with_each(assigns), do: ~H|<ul><.each :let={item} items={@items}><li>{item}</li></.each></ul>|
+  defp list_with_key(assigns), do: ~H|<ul><li :for={item <- @items} :key={item}>{item}</li></ul>|
 
   describe "choose/1: selection" do
     test "renders the first slot with a truthy test, in source order" do
@@ -715,6 +744,306 @@ defmodule ShoddyPhoenix.ControlFlowTest do
 
       assert rendered_to_string(~H"<.result value={:ok}><:ok>ok</:ok><:error>{crash!()}</:error></.result>") ==
                "ok"
+    end
+  end
+
+  describe "wrap_if/1" do
+    test "renders only the content when the test is falsy" do
+      for test <- [nil, false] do
+        assigns = %{test: test}
+
+        html =
+          rendered_to_string(~H"""
+          <.wrap_if test={@test}><:wrapper :let={content}><b>{render_slot(content)}</b></:wrapper>a</.wrap_if>
+          """)
+
+        assert String.trim(html) == "a"
+      end
+    end
+
+    test "puts the content into the wrapper when the test is truthy" do
+      for test <- [true, 0, "", []] do
+        assigns = %{test: test}
+
+        html =
+          rendered_to_string(~H"""
+          <.wrap_if test={@test}><:wrapper :let={content}><b>{render_slot(content)}</b></:wrapper>a</.wrap_if>
+          """)
+
+        assert String.trim(html) == "<b>a</b>", "expected a wrapper for #{inspect(test)}"
+      end
+    end
+
+    test "renders each branch of the first example in the docs" do
+      for {user, expected} <- [
+            {%{name: "Ada", profile_url: "/users/ada"}, ~s(<a href="/users/ada">Ada</a>)},
+            {%{name: "Grace", profile_url: nil}, "Grace"}
+          ] do
+        assigns = %{user: user}
+
+        html =
+          rendered_to_string(~H"""
+          <.wrap_if test={@user.profile_url}>
+            <:wrapper :let={content}><a href={@user.profile_url}>{render_slot(content)}</a></:wrapper>
+            {@user.name}
+          </.wrap_if>
+          """)
+
+        assert html
+               |> String.replace(~r/\s+/, " ")
+               |> String.trim()
+               |> String.replace("> ", ">")
+               |> String.replace(" <", "<") ==
+                 expected
+      end
+    end
+
+    test "proves the docs: the body of the wrapper runs only when the test is truthy" do
+      for {tooltip, expected} <- [
+            {nil, "Save"},
+            {%{text: "Saves the form"}, ~s(<span title="Saves the form">Save</span>)}
+          ] do
+        assigns = %{tooltip: opaque(tooltip), label: "Save"}
+
+        html =
+          rendered_to_string(~H"""
+          <.wrap_if test={@tooltip}>
+            <:wrapper :let={content}><span title={@tooltip.text}>{render_slot(content)}</span></:wrapper>
+            {@label}
+          </.wrap_if>
+          """)
+
+        assert html |> String.replace(~r/\s*\n\s*/, "") |> String.trim() == expected
+      end
+    end
+
+    test "calls a lazy test one time for each render" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.wrap_if test={fn -> mark(:called) end}><:wrapper :let={content}><b>{render_slot(content)}</b></:wrapper>a</.wrap_if>
+        """)
+
+      assert String.trim(html) == "<b>a</b>"
+      assert_received {:ran, :called}
+      refute_received {:ran, :called}
+    end
+
+    test "proves the warning in the docs: a wrapper that does not render its argument hides the content" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.wrap_if test={true}><:wrapper><b>no content</b></:wrapper><i id="item">a</i></.wrap_if>
+        """)
+
+      assert String.trim(html) == "<b>no content</b>"
+    end
+
+    test "proves the warning in the docs: a wrapper that renders its argument two times repeats each id" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.wrap_if test={true}><:wrapper :let={content}>{render_slot(content)}{render_slot(content)}</:wrapper><i id="item">a</i></.wrap_if>
+        """)
+
+      assert String.trim(html) == ~s(<i id="item">a</i><i id="item">a</i>)
+    end
+
+    test "raises ArgumentError for a self-closing wrapper" do
+      assigns = %{}
+
+      assert_raise ArgumentError,
+                   "<.wrap_if> needs a <:wrapper> slot with a body. A self-closing <:wrapper /> hides the content.",
+                   fn -> rendered_to_string(~H"<.wrap_if test={true}><:wrapper />a</.wrap_if>") end
+    end
+
+    test "raises ArgumentError for two wrappers" do
+      assigns = %{}
+
+      assert_raise ArgumentError, "<.wrap_if> accepts one <:wrapper> slot at most. It received 2.", fn ->
+        rendered_to_string(~H"""
+        <.wrap_if test={true}><:wrapper :let={c}>{render_slot(c)}</:wrapper><:wrapper :let={c}>{render_slot(c)}</:wrapper>a</.wrap_if>
+        """)
+      end
+    end
+
+    test "renders the content with no wrapper when :if removes the wrapper" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.wrap_if test={true}><:wrapper :if={false} :let={content}><b>{render_slot(content)}</b></:wrapper>a</.wrap_if>
+        """)
+
+      assert String.trim(html) == "a"
+    end
+
+    test "proves the docs: LiveView sends the static HTML of the content again only when the test changes" do
+      {_first, same_test} =
+        second_diff(&profile_link/1, %{url: nil, name: "Ada"}, %{url: nil, name: "Grace"}, %{name: true})
+
+      {_first, changed_test} =
+        second_diff(&profile_link/1, %{url: nil, name: "Ada"}, %{url: "/users/ada", name: "Ada"}, %{url: true})
+
+      assert same_test =~ "Grace"
+      refute same_test =~ "static text"
+      assert changed_test =~ "static text"
+    end
+  end
+
+  describe "each/1" do
+    test "renders the content for each item, in order, and binds the item with :let" do
+      assigns = %{users: [%{name: "Ada"}, %{name: "Grace"}]}
+
+      html =
+        rendered_to_string(~H"""
+        <ul><.each :let={user} items={@users}><li>{user.name}</li><:empty><li>No users.</li></:empty></.each></ul>
+        """)
+
+      assert String.trim(html) == "<ul><li>Ada</li><li>Grace</li></ul>"
+    end
+
+    test "renders the empty slot, or nothing, for an enumerable with no items" do
+      for items <- [[], %{}, 1..0//1, MapSet.new()] do
+        assigns = %{items: items}
+
+        assert rendered_to_string(~H"<.each :let={i} items={@items}>{i}<:empty>none</:empty></.each>") == "none"
+        assert rendered_to_string(~H"<.each :let={i} items={@items}>{i}</.each>") == ""
+        assert rendered_to_string(~H"<.each :let={i} items={@items}>{i}<:empty /></.each>") == ""
+      end
+    end
+
+    test "renders the example in the docs for each case" do
+      for {users, expected} <- [
+            {[%{name: "Ada"}], "<ul><li>Ada</li></ul>"},
+            {[], "<ul><li>No users.</li></ul>"}
+          ] do
+        assigns = %{users: users}
+
+        html =
+          rendered_to_string(~H"""
+          <ul>
+            <.each :let={user} items={@users}>
+              <li>{user.name}</li>
+              <:empty><li>No users.</li></:empty>
+            </.each>
+          </ul>
+          """)
+
+        assert String.replace(html, ~r/\s*\n\s*/, "") == expected
+      end
+    end
+
+    test "accepts a range and a map, and gives a map entry as a tuple" do
+      assigns = %{}
+
+      assert rendered_to_string(~H"<.each :let={n} items={1..3}>{n}</.each>") == "123"
+      assert rendered_to_string(~H"<.each :let={{k, v}} items={%{a: 1}}>{k}={v}</.each>") == "a=1"
+    end
+
+    test "converts a lazy enumerable into a list one time for each render" do
+      assigns = %{items: Stream.map([1, 2], &mark/1)}
+
+      assert rendered_to_string(~H"<.each :let={n} items={@items}>{n}<:empty>none</:empty></.each>") == "12"
+      assert_received {:ran, 1}
+      assert_received {:ran, 2}
+      refute_received {:ran, _}
+    end
+
+    test "raises Protocol.UndefinedError for nil, as the docs tell" do
+      assigns = %{items: opaque(nil)}
+
+      assert_raise Protocol.UndefinedError, fn ->
+        rendered_to_string(~H"<.each :let={n} items={@items}>{n}</.each>")
+      end
+
+      assigns = %{items: opaque(nil)}
+      assert rendered_to_string(~H"<.each :let={n} items={@items || []}>{n}<:empty>none</:empty></.each>") == "none"
+    end
+
+    test "raises ArgumentError for a stream" do
+      # stream/3 needs the lifecycle of a mounted socket. LiveView builds the same
+      # socket for a function component in Phoenix.LiveView.Diff.
+      socket = %Socket{private: %{lifecycle: %Lifecycle{}}}
+      socket = Phoenix.LiveView.stream(socket, :users, [%{id: 1, name: "Ada"}])
+      assigns = %{streams: socket.assigns.streams}
+
+      assert_raise ArgumentError, ~r/<.each> does not accept a stream/, fn ->
+        rendered_to_string(~H"<.each :let={user} items={@streams.users}>{inspect(user)}</.each>")
+      end
+    end
+
+    test "raises ArgumentError for two empty slots" do
+      assigns = %{}
+
+      assert_raise ArgumentError, "<.each> accepts one <:empty> slot at most. It received 2.", fn ->
+        rendered_to_string(~H"<.each :let={n} items={[]}>{n}<:empty>a</:empty><:empty>b</:empty></.each>")
+      end
+    end
+
+    test "runs the empty slot only for an empty list" do
+      assigns = %{}
+      assert rendered_to_string(~H"<.each :let={n} items={[1]}>{n}<:empty>{crash!()}</:empty></.each>") == "1"
+    end
+
+    test "renders the :for alternative in the docs for each case" do
+      for {users, expected} <- [
+            {[%{id: 1, name: "Ada"}], "<ul><li>Ada</li></ul>"},
+            {[], "<ul><li>No users.</li></ul>"}
+          ] do
+        assigns = %{users: users}
+
+        html =
+          rendered_to_string(~H"""
+          <ul>
+            <li :for={user <- @users} :key={user.id}>{user.name}</li>
+            <li :if={@users == []}>No users.</li>
+          </ul>
+          """)
+
+        assert String.replace(html, ~r/\s*\n\s*/, "") == expected
+      end
+    end
+  end
+
+  describe "each/1: change tracking, as the docs tell" do
+    @items for n <- 1..20, do: "item-#{n}"
+
+    test "sends only the new item when an item is added at the end" do
+      {_first, diff} = second_diff(&list_with_each/1, %{items: @items}, %{items: @items ++ ["item-21"]}, %{items: true})
+
+      assert diff =~ "item-21"
+      refute diff =~ "item-20"
+    end
+
+    test "sends only the changed item when one item changes" do
+      changed = List.replace_at(@items, 9, "changed")
+      {_first, diff} = second_diff(&list_with_each/1, %{items: @items}, %{items: changed}, %{items: true})
+
+      assert diff =~ "changed"
+      refute diff =~ "item-11"
+    end
+
+    test "sends each later item again when an item is added at the start, and :for with :key does not" do
+      {_first, each_diff} =
+        second_diff(&list_with_each/1, %{items: @items}, %{items: ["item-0" | @items]}, %{items: true})
+
+      {_first, key_diff} =
+        second_diff(&list_with_key/1, %{items: @items}, %{items: ["item-0" | @items]}, %{items: true})
+
+      assert each_diff =~ "item-15"
+      refute key_diff =~ "item-15"
+      assert byte_size(key_diff) < byte_size(each_diff)
+    end
+
+    test "has a larger first render than the same :for" do
+      {each_first, _diff} = second_diff(&list_with_each/1, %{items: @items}, %{items: @items}, %{})
+      {key_first, _diff} = second_diff(&list_with_key/1, %{items: @items}, %{items: @items}, %{})
+
+      assert byte_size(each_first) > byte_size(key_first)
     end
   end
 

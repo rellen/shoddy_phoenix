@@ -131,4 +131,33 @@ defmodule ShoddyPhoenix.ControlFlowPropertyTest do
       end
     end
   end
+
+  describe "wrap_if/1" do
+    property "puts the content into the wrapper only for a truthy test" do
+      check all(test <- test_value()) do
+        assigns = %{test: test}
+
+        html =
+          rendered_to_string(
+            ~H"<.wrap_if test={@test}><:wrapper :let={content}>[{render_slot(content)}]</:wrapper>x</.wrap_if>"
+          )
+
+        assert html == if(test, do: "[x]", else: "x")
+      end
+    end
+  end
+
+  describe "each/1" do
+    property "renders the content for each item in order, or the empty slot" do
+      check all(items <- list_of(integer(), max_length: 10)) do
+        assigns = %{items: items}
+
+        html =
+          rendered_to_string(~H"<.each :let={item} items={@items}>[{item}]<:empty>none</:empty></.each>")
+
+        expected = if items == [], do: "none", else: Enum.map_join(items, &"[#{&1}]")
+        assert html == expected
+      end
+    end
+  end
 end

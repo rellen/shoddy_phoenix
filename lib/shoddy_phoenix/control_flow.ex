@@ -6,14 +6,16 @@ if Code.ensure_loaded?(Phoenix.Component) do
     @moduledoc """
     Function components for control flow in HEEx templates.
 
-    Each component renders one of several branches:
-
     - `choose/1` renders the first `<:when>` with a truthy `test`. It gives a
       template a readable alternative to a `<%= cond do %>` block.
     - `switch/1` renders the first `<:case>` whose `value` equals the value of
       the component.
     - `result/1` renders `<:ok>` or `<:error>` for a result, such as
       `{:ok, user}` or `{:error, reason}`.
+    - `wrap_if/1` puts its content into a wrapper, such as a link, only when a
+      test is truthy.
+    - `each/1` renders its content for each item of a list, or an `<:empty>`
+      slot for an empty list.
 
     ```heex
     <.choose>
@@ -29,7 +31,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
     [The evaluation order](#choose/1-evaluation-order) tells how to write a
     test that is safe.
 
-    Each component adds no whitespace around the body that it renders.
+    Each component adds no whitespace around the body that it renders. The
+    documentation of each component gives the mistakes to avoid. Read it before
+    you use the component.
 
     ## Usage
 
@@ -60,6 +64,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     use Phoenix.Component
 
+    alias Phoenix.LiveView.LiveStream
     alias Phoenix.LiveView.Rendered
 
     @doc """
@@ -355,6 +360,209 @@ if Code.ensure_loaded?(Phoenix.Component) do
     def result(%{value: :ok} = assigns), do: render_outcome(assigns, :ok, nil)
     def result(%{value: {:error, reason}} = assigns), do: render_outcome(assigns, :error, reason)
     def result(%{value: :error} = assigns), do: render_outcome(assigns, :error, nil)
+
+    @doc """
+    Puts the content into the `<:wrapper>` slot when `test` is truthy.
+
+    When `test` is falsy, the component renders only its content. When `test`
+    is truthy, it renders the `<:wrapper>` slot, and it gives the content to
+    that slot as the argument. The wrapper puts the content where it calls
+    `render_slot/1` with that argument. Thus the template contains the content
+    one time only.
+
+    A truthy value is a value that is not `nil` and not `false`. A `test` can
+    be a function of arity 0, as in `choose/1`. The component then calls the
+    function one time for each render.
+
+    ## Examples
+
+    This template shows the name of a user as a link to the profile of the
+    user. For a user with no profile, it shows the name as plain text:
+
+    ```heex
+    <.wrap_if test={@user.profile_url}>
+      <:wrapper :let={content}><a href={@user.profile_url}>{render_slot(content)}</a></:wrapper>
+      {@user.name}
+    </.wrap_if>
+    ```
+
+    The body of `<:wrapper>` runs only when `test` is truthy. Thus the body can
+    use a value that exists only in that case. In this template, `@tooltip`
+    can be `nil`:
+
+    ```heex
+    <.wrap_if test={@tooltip}>
+      <:wrapper :let={content}><span title={@tooltip.text}>{render_slot(content)}</span></:wrapper>
+      {@label}
+    </.wrap_if>
+    ```
+
+    ## The wrapper and the content
+
+    > #### Render the content one time {: .warning}
+    >
+    > The component does not examine the body of `<:wrapper>`. If the wrapper
+    > does not call `render_slot/1` with its argument, the content disappears,
+    > and no error occurs. If the wrapper calls it two times, the page contains
+    > the content two times, and each `id` in the content occurs two times.
+
+    The argument of `<:wrapper>` is a slot, not HTML. Give it only to
+    `render_slot/1`.
+
+    The component raises `ArgumentError` for a self-closing `<:wrapper />`,
+    because such a wrapper hides the content. It also raises `ArgumentError`
+    for more than one `<:wrapper>` slot. If `:if` removes the `<:wrapper>`, the
+    component renders the content with no wrapper.
+
+    ## Changes of the test
+
+    While `test` keeps its value, LiveView sends only the parts of the content
+    that changed. When `test` changes from falsy to truthy, or back, the
+    content moves into the wrapper or out of it. LiveView then sends the whole
+    content again, with its static HTML.
+
+    If the content keeps a state in the browser, examine a change of `test` in
+    a browser. The focus of an input, the text in an input, and an element
+    with a hook are examples of such a state.
+
+    ## When to use something else
+
+    - If only an attribute differs, such as a `class`, give that attribute an
+      expression. Do not use this component.
+    - If the two branches differ in more than a wrapper, use `choose/1`.
+    """
+    attr :test, :any,
+      required: true,
+      doc: """
+      Evaluated on every render. When it is truthy, the component puts the
+      content into the wrapper. The component calls a function of arity 0 one
+      time for each render.
+      """
+
+    slot :wrapper,
+      required: true,
+      doc: """
+      The wrapper. Its argument is the content. Give the argument to
+      `render_slot/1` one time.
+      """
+
+    slot :inner_block, required: true, doc: "The content."
+
+    @spec wrap_if(map()) :: Rendered.t()
+    def wrap_if(assigns) do
+      case at_most_one!(assigns, :wrap_if, :wrapper) do
+        %{inner_block: nil} ->
+          raise ArgumentError,
+                "<.wrap_if> needs a <:wrapper> slot with a body. A self-closing <:wrapper /> hides the content."
+
+        wrapper ->
+          if wrapper && evaluate(assigns.test) do
+            render_entry(assigns, wrapper, assigns.inner_block)
+          else
+            ~H"{render_slot(@inner_block)}"
+          end
+      end
+    end
+
+    @doc """
+    Renders the content for each item of `items`, or the `<:empty>` slot when
+    `items` has no items.
+
+    The argument of the content is the item, so `:let` binds it. The component
+    converts `items` into a list with `Enum.to_list/1` one time for each
+    render. It renders the items in the order of that list.
+
+    If `items` has no items, the component renders the `<:empty>` slot. If
+    there is no `<:empty>` slot, it renders nothing. A self-closing
+    `<:empty />` also renders nothing. The component raises `ArgumentError`
+    for more than one `<:empty>` slot.
+
+    ## Examples
+
+    This template shows a list of users, or a message for an empty list:
+
+    ```heex
+    <ul>
+      <.each :let={user} items={@users}>
+        <li>{user.name}</li>
+        <:empty><li>No users.</li></:empty>
+      </.each>
+    </ul>
+    ```
+
+    ## The value of items
+
+    `items` can be each finite enumerable, such as a list, a range or a map.
+    For a map, the argument is a `{key, value}` tuple. Elixir does not define
+    the order of the entries of a map. If the order is important, sort the map
+    into a list first.
+
+    For a value that is not enumerable, such as `nil`, the component raises
+    `Protocol.UndefinedError`. For a list that can be `nil`, write
+    `items={@users || []}`.
+
+    > #### Streams do not work {: .warning}
+    >
+    > The component raises `ArgumentError` for a stream, such as
+    > `@streams.users`. LiveView does not keep the items of a stream on the
+    > server after it renders them. Thus the component cannot know whether
+    > the stream is empty.
+
+    For the empty state of a stream, use the CSS rule of the section "Handling
+    the empty case" in the documentation of `Phoenix.LiveView.stream/4`.
+
+    ## Change tracking
+
+    `each/1` tracks the items by their position in the list, as a `:for`
+    without `:key` does. When you add an item at the end of the list, or
+    change one item, LiveView sends only that item. When you add or remove an
+    item before the end, LiveView sends each later item again. A `:for` with
+    `:key` sends much less in that case. The caller cannot give `:key` to
+    `each/1`, because LiveView accepts `:key` only together with `:for`.
+
+    The first render of `each/1` is also larger than the first render of the
+    same `:for`. The component renders each item as a separate slot.
+
+    For a long list that changes before its end, use `:for` with `:key`, and
+    show the empty state with `:if`:
+
+    ```heex
+    <ul>
+      <li :for={user <- @users} :key={user.id}>{user.name}</li>
+      <li :if={@users == []}>No users.</li>
+    </ul>
+    ```
+    """
+    attr :items, :any,
+      required: true,
+      doc: "A finite enumerable, such as a list. A stream is not permitted."
+
+    slot :inner_block, required: true, doc: "The content for each item. Its argument is the item."
+
+    slot :empty, doc: "The content when `items` has no items. Give one at most."
+
+    @spec each(map()) :: Rendered.t()
+    # Phoenix.LiveView.LiveStream is a private struct of LiveView. If LiveView
+    # renames it, this pattern fails to compile, so the check cannot disappear
+    # with no warning.
+    def each(%{items: %LiveStream{}}) do
+      raise ArgumentError,
+            "<.each> does not accept a stream. LiveView does not keep the items of a stream " <>
+              "on the server, so <.each> cannot know whether the stream is empty."
+    end
+
+    def each(assigns) do
+      empty = at_most_one!(assigns, :each, :empty)
+
+      case Enum.to_list(assigns.items) do
+        [] ->
+          render_entry(assigns, empty, nil)
+
+        list ->
+          assigns = assign(assigns, :list, list)
+          ~H"<%= for item <- @list do %>{render_slot(@inner_block, item)}<% end %>"
+      end
+    end
 
     defp render_outcome(assigns, slot, argument) do
       ok = at_most_one!(assigns, :result, :ok)
