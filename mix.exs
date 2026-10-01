@@ -6,6 +6,7 @@ defmodule ShoddyPhoenix.MixProject do
       app: :shoddy_phoenix,
       version: "0.1.0",
       elixir: "~> 1.19",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -17,6 +18,12 @@ defmodule ShoddyPhoenix.MixProject do
       dialyzer: [plt_local_path: "priv/plts"]
     ]
   end
+
+  # The tests of ShoddyPhoenix.LiveView need an endpoint, a router and some
+  # LiveViews. These modules are in test/support, and only the test
+  # environment compiles them.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
 
   def cli do
     [preferred_envs: ["test.mutation": :test]]
@@ -68,7 +75,8 @@ defmodule ShoddyPhoenix.MixProject do
         Development: ["docs/development.md"]
       ],
       groups_for_modules: [
-        Components: [ShoddyPhoenix.ControlFlow]
+        Components: [ShoddyPhoenix.ControlFlow],
+        "LiveView sockets": [ShoddyPhoenix.LiveView]
       ]
     ]
   end
@@ -82,6 +90,8 @@ defmodule ShoddyPhoenix.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # Phoenix.LiveViewTest needs lazy_html to render a LiveView in a test.
+      {:lazy_html, "~> 0.1.0", only: :test},
       {:doctor, "~> 0.23.0", only: :dev, runtime: false},
       {:ex_check, "~> 0.16.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.40.1", only: :dev, runtime: false},

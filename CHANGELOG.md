@@ -21,3 +21,8 @@ ShoddyPhoenix has no release yet. The first release contains these changes:
 - Add `ShoddyPhoenix.ControlFlow.each/1`, a function component that renders
   its content for each item of a list, or an `<:empty>` slot for an empty
   list.
+- Add `ShoddyPhoenix.LiveView.when_connected/2` and
+  `ShoddyPhoenix.LiveView.when_not_connected/2`. These functions apply a
+  function to the socket of a LiveView only when the socket is connected,
+  or only when it is not connected. The module needs the optional dependency
+  `phoenix_live_view`.
