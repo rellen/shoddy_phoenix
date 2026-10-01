@@ -19,7 +19,8 @@
 #
 # The arguments are the paths of the tutorials. With no argument, the script
 # runs each tutorial in docs/tutorials. The script exits with the status 1 if
-# one tutorial fails.
+# one tutorial fails, or if it finds no tutorial in docs/tutorials. A check
+# with no tutorial checks nothing, so it must not succeed.
 
 defmodule RunTutorials do
   @moduledoc false
@@ -29,7 +30,16 @@ defmodule RunTutorials do
   @earlier "<!-- tutorial: earlier version -->"
   @replacement "<!-- tutorial: replaces the earlier version -->"
 
-  def main([]), do: main(Path.wildcard(Path.join(@root, "docs/tutorials/*.md")))
+  def main([]) do
+    case Path.wildcard(Path.join(@root, "docs/tutorials/*.md")) do
+      [] ->
+        IO.puts("The script found no tutorial in docs/tutorials.")
+        System.halt(1)
+
+      paths ->
+        main(paths)
+    end
+  end
 
   def main(paths) do
     failed = Enum.reject(paths, &run/1)
