@@ -346,3 +346,21 @@ for the message then does not crash. The hook continues each other message.
 
 The guide also tells what to do when another part of the LiveView needs the
 messages of the widget.
+
+## Tutorials as scripts
+
+Each tutorial is one script for `Mix.install/2`. The reader needs no Phoenix
+application and no generator, such as `mix phx.new`. The tutorial contains
+each line of the script, so the output of a generator cannot change the
+lesson.
+
+A lesson about a LiveView needs an endpoint, a router and a PubSub server.
+phoenix_playground supplies the endpoint and the router, so the script shows
+mostly the code of the lesson. The LiveView tutorial uses the test functions
+of phoenix_playground. The reader then sees each problem in the output of a
+test, with no browser.
+
+A tutorial must work each time. Thus the job `tutorials` of the workflow
+runs each tutorial against the code of the commit. A change that breaks a
+tutorial makes the workflow fail. phoenix_playground is a dependency of the
+tutorials only. ShoddyPhoenix does not depend on it.

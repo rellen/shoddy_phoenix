@@ -1,44 +1,40 @@
 # Get started with ShoddyPhoenix
 
-In this tutorial, you make a small project with a function component that
-greets a user. The component uses `ShoddyPhoenix.ControlFlow.choose/1` to
-select one of three branches. You see why each test of `<.choose>` must be
-safe, and you write tests for the component.
+In this tutorial, you write a script with a function component that greets a
+user. The component uses `ShoddyPhoenix.ControlFlow.choose/1` to select one
+of three branches. You see why each test of `<.choose>` must be safe, and you
+write tests for the component.
 
-You need Elixir 1.19 or a later version. You do not need a Phoenix
-application. The project uses only Phoenix LiveView and ShoddyPhoenix.
+You need Elixir 1.19 or a later version, and git. You do not need a Phoenix
+application. The script gets its dependencies with `Mix.install/2`.
 
-## Make the project
+## Make the script
 
-Make a new project:
-
-```sh
-mix new greeting
-cd greeting
-```
-
-Open `mix.exs`, and add Phoenix LiveView and ShoddyPhoenix to the list of
-dependencies:
+Make a new directory. In it, make the file `greeting.exs` with this code:
 
 ```elixir
-defp deps do
-  [
-    {:phoenix_live_view, "~> 1.2"},
-    {:shoddy_phoenix, github: "rellen/shoddy_phoenix"}
-  ]
-end
+Mix.install([
+  {:phoenix_live_view, "~> 1.2"},
+  {:shoddy_phoenix, github: "rellen/shoddy_phoenix"}
+])
 ```
 
-Get the dependencies:
+`Mix.install/2` gets Phoenix LiveView from Hex and ShoddyPhoenix from
+GitHub, and it compiles them. Run the script:
 
 ```sh
-mix deps.get
+elixir greeting.exs
 ```
+
+The first run gets and compiles the dependencies, so it is slow.
+`Mix.install/2` keeps the result, so the next runs are fast. The script prints
+nothing yet.
 
 ## Write the component
 
-Replace the contents of `lib/greeting.ex` with this module:
+Add this module to the end of the script:
 
+<!-- tutorial: earlier version -->
 ```elixir
 defmodule Greeting do
   @moduledoc """
@@ -69,29 +65,44 @@ is a value that is not `nil` and not `false`. If no test is truthy,
 
 ## Try the component
 
-Start IEx with the project:
+`Phoenix.LiveViewTest.rendered_to_string/1` converts the result of a
+component to a string. Add these lines to the end of the script. They call
+the component with an admin and with a user who is not an admin:
+
+```elixir
+alias Phoenix.LiveViewTest
+
+IO.puts(LiveViewTest.rendered_to_string(Greeting.greeting(%{user: %{name: "Ada", admin?: true}})))
+IO.puts(LiveViewTest.rendered_to_string(Greeting.greeting(%{user: %{name: "Grace", admin?: false}})))
+```
+
+The script uses an alias, not an `import`. An `import` at the top level of
+the script fails, because Elixir needs the module before `Mix.install/2` gets
+it.
+
+Run the script again:
 
 ```sh
-iex -S mix
+elixir greeting.exs
 ```
 
-`Phoenix.LiveViewTest.rendered_to_string/1` converts the result of a
-component to a string. Call the component with an admin and with a user who
-is not an admin:
+The script prints two lines:
 
-```elixir
-iex> import Phoenix.LiveViewTest
-Phoenix.LiveViewTest
-iex> Greeting.greeting(%{user: %{name: "Ada", admin?: true}}) |> rendered_to_string()
-"<a href=\"/admin\">Admin panel</a>"
-iex> Greeting.greeting(%{user: %{name: "Grace", admin?: false}}) |> rendered_to_string()
-"Hello, Grace"
+```text
+<a href="/admin">Admin panel</a>
+Hello, Grace
 ```
 
-Now call the component with no user:
+Now add a line that calls the component with no user:
 
 ```elixir
-iex> Greeting.greeting(%{user: nil}) |> rendered_to_string()
+IO.puts(LiveViewTest.rendered_to_string(Greeting.greeting(%{user: nil})))
+```
+
+Run the script again. It prints the two lines, and then the third call raises
+an error:
+
+```text
 ** (BadMapError) expected a map, got:
 
     nil
@@ -105,31 +116,50 @@ stops at the first true condition, but `<.choose>` does not.
 ## Make the test safe
 
 Put a guard in the second test. The operator `&&` does not evaluate its right
-side when its left side is `nil`:
+side when its left side is `nil`. Replace the module `Greeting` with this
+version:
 
-```heex
-<:when test={@user && @user.admin?}><a href="/admin">Admin panel</a></:when>
-```
-
-Compile the change in IEx, and call the component again:
-
+<!-- tutorial: replaces the earlier version -->
 ```elixir
-iex> recompile()
-Compiling 1 file (.ex)
-Generated greeting app
-:ok
-iex> Greeting.greeting(%{user: nil}) |> rendered_to_string()
-"<a href=\"/sign-in\">Sign in</a>"
+defmodule Greeting do
+  @moduledoc """
+  Renders a greeting for the user who is signed in.
+  """
+
+  use Phoenix.Component
+
+  import ShoddyPhoenix.ControlFlow
+
+  attr :user, :map, required: true
+
+  def greeting(assigns) do
+    ~H"""
+    <.choose>
+      <:when test={is_nil(@user)}><a href="/sign-in">Sign in</a></:when>
+      <:when test={@user && @user.admin?}><a href="/admin">Admin panel</a></:when>
+      <:otherwise>Hello, {@user.name}</:otherwise>
+    </.choose>
+    """
+  end
+end
 ```
 
-Stop IEx with Ctrl+C two times.
+Only the second `<:when>` is different. Run the script again. It prints three
+lines:
+
+```text
+<a href="/admin">Admin panel</a>
+Hello, Grace
+<a href="/sign-in">Sign in</a>
+```
 
 ## Test the component
 
-`mix new` made a test for a function that the module no longer has. Replace
-the contents of `test/greeting_test.exs` with these tests:
+Add these tests to the end of the script:
 
 ```elixir
+ExUnit.start()
+
 defmodule GreetingTest do
   use ExUnit.Case
 
@@ -153,19 +183,20 @@ defmodule GreetingTest do
 end
 ```
 
-Run the tests:
+`ExUnit.start/1` starts ExUnit. When the script ends, ExUnit runs the tests.
+Inside a module, an `import` works, because Elixir compiles the module after
+`Mix.install/2` runs.
 
-```sh
-mix test
-```
-
-The output shows `3 tests, 0 failures`.
+Run the script again. The output ends with `3 tests, 0 failures`.
 
 ## Next steps
 
 You made a component with `<.choose>`, you found an unsafe test, and you
 made the test safe.
 
+- [See the two renders of a LiveView](see-the-two-renders-of-a-liveview.md)
+  is the next tutorial. It shows why a LiveView mounts two times, and it
+  uses `ShoddyPhoenix.LiveView`.
 - [Replace a cond block in a template](../how-to/replace-a-cond-block-in-a-template.md)
   gives the steps to change a template of an application. It also shows
   `<.switch>` and a lazy test.
@@ -176,10 +207,5 @@ made the test safe.
   show `<.wrap_if>` and `<.each>`.
 - The page of `ShoddyPhoenix.ControlFlow` gives each rule of `choose/1`. Its
   section "Evaluation order" tells what a test must be.
-- [Do work only after a LiveView connects](../how-to/do-work-only-after-a-liveview-connects.md)
-  shows `ShoddyPhoenix.LiveView.when_connected/2`.
-- [Build a widget with lifecycle hooks](../how-to/build-a-widget-with-lifecycle-hooks.md)
-  builds a chat widget with `ShoddyPhoenix.LiveView.Subscriptions` and
-  `ShoddyPhoenix.LiveView.Widgets`.
 - [The design of ShoddyPhoenix](../explanation/design.md) tells why the
   tests of `<.choose>` are eager.
