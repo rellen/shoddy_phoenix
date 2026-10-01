@@ -65,7 +65,7 @@ dependency of Phoenix such as Plug, or Phoenix LiveView. Put each other
 function into Shoddy.
 [The design of ShoddyPhoenix](explanation/design.md) tells why.
 
-Put a module that operates on the socket of a LiveView under
+Put a module that operates on a LiveView or on its socket under
 `ShoddyPhoenix.LiveView`, as `lib/shoddy_phoenix/live_view/widgets.ex` is.
 Put a module for templates at the top level, as
 `lib/shoddy_phoenix/control_flow.ex` is.
@@ -92,6 +92,10 @@ Give each module these tests:
 - For a function that operates on the socket of a LiveView, a LiveView in
   `test/support` for each example of its `@doc`. A test renders that
   LiveView with `Phoenix.LiveViewTest.live/2`.
+- For a macro that examines code at the compile time, a test that compiles
+  code with `Code.compile_string/2`. `ShoddyPhoenix.Test.Warnings.collect/1`
+  returns the warnings of the compiler. It reads only the warnings of its
+  own process, so async tests do not read the warnings of each other.
 - A file with the suffix `_test.exs` in `test/`, with the usual ExUnit
   tests.
 - A file with the suffix `_property_test.exs` in `test/`, with property

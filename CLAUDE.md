@@ -68,7 +68,7 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
 - Phoenix is the only required runtime dependency. `phoenix_live_view` is
   an optional dependency. Do not add another dependency before you discuss
   it with the maintainer.
-- Put a module that operates on the socket of a LiveView under
+- Put a module that operates on a LiveView or on its socket under
   `ShoddyPhoenix.LiveView`. Put a module for templates, such as a module of
   function components, at the top level.
 - Put a module that needs `phoenix_live_view` inside
@@ -80,6 +80,10 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
   operates on the socket of a LiveView through a LiveView in `test/support`,
   with `Phoenix.LiveViewTest.live/2`. Give each claim of a `@doc` or a
   `@moduledoc` a test.
+- Test a macro that examines code at the compile time with
+  `Code.compile_string/2`. Read the warnings with
+  `ShoddyPhoenix.Test.Warnings.collect/1`, not from the standard error.
+  Async tests share the standard error.
 
 `docs/explanation/design.md` gives the reasons for these rules.
 
