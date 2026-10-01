@@ -13,5 +13,12 @@ defmodule ShoddyPhoenix do
     HEEx templates. It needs the optional dependency `phoenix_live_view`.
   - `ShoddyPhoenix.LiveView` has functions that operate on the socket of a
     LiveView. It needs the optional dependency `phoenix_live_view`.
+  - `ShoddyPhoenix.LiveView.Subscriptions` subscribes a LiveView to a PubSub
+    topic for each owner.
+  - `ShoddyPhoenix.LiveView.Widgets` sends the events of a widget to the code
+    of that widget.
+
+  A module that operates on the socket of a LiveView is under
+  `ShoddyPhoenix.LiveView`. A module for templates is at the top level.
   """
 end

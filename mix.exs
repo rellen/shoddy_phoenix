@@ -1,6 +1,9 @@
 defmodule ShoddyPhoenix.MixProject do
   use Mix.Project
 
+  alias ShoddyPhoenix.LiveView.Subscriptions
+  alias ShoddyPhoenix.LiveView.Widgets
+
   def project do
     [
       app: :shoddy_phoenix,
@@ -77,7 +80,11 @@ defmodule ShoddyPhoenix.MixProject do
       ],
       groups_for_modules: [
         Components: [ShoddyPhoenix.ControlFlow],
-        "LiveView sockets": [ShoddyPhoenix.LiveView]
+        "LiveView sockets": [
+          ShoddyPhoenix.LiveView,
+          Subscriptions,
+          Widgets
+        ]
       ]
     ]
   end

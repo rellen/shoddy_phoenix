@@ -9,6 +9,15 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
       is connected.
     - `when_not_connected/2` applies a function to the socket only when the
       socket is not connected.
+    - `put_hook/4` attaches a lifecycle hook, and it replaces a hook with the
+      same id. A second call with the same id does not raise.
+
+    Two other modules also operate on the socket:
+
+    - `ShoddyPhoenix.LiveView.Subscriptions` subscribes a LiveView to PubSub
+      topics for each part that needs a topic.
+    - `ShoddyPhoenix.LiveView.Widgets` sends the events of a widget to the
+      code of that widget.
 
     Each function returns a socket, so it can be a step of a pipeline:
 
@@ -82,14 +91,14 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
 
     ## The function must return a socket
 
-    Each function of this module calls its function with the socket, and it
-    returns the result in place of the socket. Thus that result must be a
-    socket.
+    `when_connected/2` and `when_not_connected/2` call their function with the
+    socket, and they return the result in place of the socket. Thus that
+    result must be a socket.
 
     A function that ends with a call such as `Phoenix.PubSub.subscribe/2`
-    returns the result of that call, which is `:ok`. Each function of this
-    module raises `ArgumentError` for a result that is not a socket. Thus the
-    error occurs in the call that has the mistake.
+    returns the result of that call, which is `:ok`. Both functions raise
+    `ArgumentError` for a result that is not a socket. Thus the error occurs
+    in the call that has the mistake.
 
     ## When to use something else
 
@@ -102,6 +111,13 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     """
 
     alias Phoenix.LiveView.Socket
+
+    # The arity of the hook function of each stage. LiveView calls the
+    # function of a :handle_info hook with two arguments, for example.
+    defguardp is_hook(stage, fun)
+              when (stage in [:handle_event, :handle_params, :handle_async] and is_function(fun, 3)) or
+                     (stage == :handle_info and is_function(fun, 2)) or
+                     (stage == :after_render and is_function(fun, 1))
 
     @doc """
     Applies a function to the socket only when the socket is connected.
@@ -164,6 +180,60 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     @spec when_not_connected(Socket.t(), (Socket.t() -> Socket.t())) :: Socket.t()
     def when_not_connected(%Socket{} = socket, fun) when is_function(fun, 1) do
       if Phoenix.LiveView.connected?(socket), do: socket, else: apply_to(socket, fun, :when_not_connected)
+    end
+
+    @doc """
+    Attaches a lifecycle hook, and replaces a hook with the same id and stage.
+
+    `Phoenix.LiveView.attach_hook/4` raises `ArgumentError` when a hook with
+    the same `id` is already on the `stage`. `put_hook/4` first removes that
+    hook with `Phoenix.LiveView.detach_hook/3`, and then it attaches `fun`.
+    Thus code that can run two times, such as a function that adds a widget,
+    can call `put_hook/4` each time:
+
+        socket
+        |> LiveView.put_hook({MyAppWeb.ChatWidget, :info}, :handle_info, &handle_info/2)
+
+    The stage and the return value of the hook are the same as for
+    `Phoenix.LiveView.attach_hook/4`. `fun` must have the arity of its stage:
+
+    | Stage | Arity |
+    | --- | --- |
+    | `:handle_event` | 3 |
+    | `:handle_params` | 3 |
+    | `:handle_async` | 3 |
+    | `:handle_info` | 2 |
+    | `:after_render` | 1 |
+
+    `put_hook/4` raises `FunctionClauseError` for a first argument that is not
+    a socket, for another stage, or for a function of another arity.
+
+    LiveView still applies its own rules:
+
+    - A `:handle_params` hook works only in a LiveView that the router mounted
+      with `live/3`. LiveView raises `ArgumentError` for it in a nested
+      LiveView of `live_render/3`. It raises `RuntimeError` for it in a
+      LiveView of `Phoenix.LiveViewTest.live_isolated/3`.
+    - The socket of a LiveComponent accepts only `:handle_event`,
+      `:handle_async` and `:after_render` hooks. LiveView raises
+      `ArgumentError` for another stage.
+
+    > #### A replaced hook moves to the end {: .warning}
+    >
+    > LiveView calls the hooks of a stage in the order that they were
+    > attached. `put_hook/4` puts `fun` at the end of that order, also when it
+    > replaces a hook. If a hook can halt, attach the hooks of that stage in
+    > the necessary order. Do not replace them later.
+
+    A second call with the same `id` and `stage` replaces the function with
+    no warning. Give each hook an `id` that only its own code uses. A tuple
+    with the name of the module is a good `id`.
+    """
+    @spec put_hook(Socket.t(), term(), atom(), function()) :: Socket.t()
+    def put_hook(%Socket{} = socket, id, stage, fun) when is_hook(stage, fun) do
+      socket
+      |> Phoenix.LiveView.detach_hook(id, stage)
+      |> Phoenix.LiveView.attach_hook(id, stage, fun)
     end
 
     defp apply_to(socket, fun, name) do

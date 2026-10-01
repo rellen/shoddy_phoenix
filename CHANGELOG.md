@@ -26,3 +26,10 @@ ShoddyPhoenix has no release yet. The first release contains these changes:
   function to the socket of a LiveView only when the socket is connected,
   or only when it is not connected. The module needs the optional dependency
   `phoenix_live_view`.
+- Add `ShoddyPhoenix.LiveView.put_hook/4`, which attaches a lifecycle hook
+  and replaces a hook with the same id and stage.
+- Add `ShoddyPhoenix.LiveView.Subscriptions`, which subscribes a LiveView to
+  a PubSub topic for each owner. The LiveView has one subscription for each
+  topic, and it unsubscribes when the last owner unsubscribes.
+- Add `ShoddyPhoenix.LiveView.Widgets`, which sends the events of a widget to
+  a function of the widget, and which finds the instance that an event names.
