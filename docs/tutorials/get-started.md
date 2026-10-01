@@ -176,5 +176,10 @@ made the test safe.
   show `<.wrap_if>` and `<.each>`.
 - The page of `ShoddyPhoenix.ControlFlow` gives each rule of `choose/1`. Its
   section "Evaluation order" tells what a test must be.
+- [Do work only after a LiveView connects](../how-to/do-work-only-after-a-liveview-connects.md)
+  shows `ShoddyPhoenix.LiveView.when_connected/2`.
+- [Build a widget with lifecycle hooks](../how-to/build-a-widget-with-lifecycle-hooks.md)
+  builds a chat widget with `ShoddyPhoenix.LiveView.Subscriptions` and
+  `ShoddyPhoenix.LiveView.Widgets`.
 - [The design of ShoddyPhoenix](../explanation/design.md) tells why the
   tests of `<.choose>` are eager.
