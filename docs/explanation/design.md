@@ -275,3 +275,74 @@ of LiveView that changes such a fact makes a test fail, and the
 documentation does not become wrong without a warning.
 `Phoenix.LiveViewTest.live/2` needs the test dependency `lazy_html`, so
 ShoddyPhoenix has it only in the test environment.
+
+## The names of the modules
+
+ShoddyPhoenix puts a module that operates on the socket of a LiveView under
+`ShoddyPhoenix.LiveView`. It puts a module for templates at the top level.
+
+A function component of `ShoddyPhoenix.ControlFlow` needs no socket. It
+works in each HEEx template, also in a template that a controller renders.
+Phoenix makes the same separation. `Phoenix.Component` is outside the module
+`Phoenix.LiveView`, although both modules are in the package
+`phoenix_live_view`.
+
+## The owners of a topic
+
+Phoenix.PubSub has no public function that tells whether a process has a
+subscription. Thus `ShoddyPhoenix.LiveView.Subscriptions` keeps its own
+record in the private data of the socket. `Phoenix.LiveView.put_private/3`
+exists for such a record of a library.
+
+The record contains owners, not a count. A count has two problems:
+
+- An extra call of `subscribe` keeps a subscription that no part needs.
+- An extra call of `unsubscribe` removes the subscription of another part.
+
+With owners, a repeated call with the same owner changes nothing. A widget
+that a LiveView adds two times thus causes no problem.
+
+## The name of a widget
+
+`ShoddyPhoenix.LiveView.Widgets.route_events/3` adds the colon to the name
+of the widget. If the caller gave the full prefix, the prefix `"chat"` would
+also own the event `"chatter:send"`.
+
+One name belongs to one module. Each name has one hook, so a second module
+with the same name would replace the hook of the first module. The events of
+the first widget would then go to the wrong handler. Thus
+`route_events/3` raises `ArgumentError`, and the mistake shows when the
+LiveView mounts.
+
+## Errors in the handler of a widget
+
+`route_events/3` halts each event of the widget, also an event that the
+handler cannot handle. The event never goes to the LiveView, because the
+LiveView does not know the events of the widget.
+
+`route_events/3` does not catch `FunctionClauseError`. The handler can call
+another function that raises the same error, and a catch would hide that
+error. A `handle_event/3` with no clause for an event also raises. Thus the
+documentation asks for a clause for each event of a widget.
+
+## The instance of an event
+
+A client chooses each parameter of an event, and it can send each value.
+`String.to_existing_atom/1` raises `ArgumentError` for a string that is not an
+atom. A pattern match on the assign that the atom names can raise
+`MatchError`, because the client can name an assign of another kind. Both
+errors crash the LiveView.
+
+`ShoddyPhoenix.LiveView.Widgets.fetch_instance/3` compares strings, and it
+examines only the assigns that contain a struct of the widget. It makes no
+atom, and it returns `:error` for each other value.
+
+## The messages of the widget in the guide
+
+The how-to guide "Build a widget with lifecycle hooks" halts each message
+with the tag of the widget. The hook gives the message to each instance, so
+no other code needs it. A LiveView with a `handle_info/2` that has no clause
+for the message then does not crash. The hook continues each other message.
+
+The guide also tells what to do when another part of the LiveView needs the
+messages of the widget.

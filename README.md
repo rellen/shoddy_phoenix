@@ -34,7 +34,7 @@ HEEx templates:
 - `each/1` renders its content for each item of a list, or an `<:empty>`
   slot for an empty list. It does not accept a LiveView stream.
 
-`ShoddyPhoenix.LiveView` has two functions that operate on the socket of a
+`ShoddyPhoenix.LiveView` has three functions that operate on the socket of a
 LiveView:
 
 - `when_connected/2` applies a function to the socket only when the socket
@@ -43,6 +43,18 @@ LiveView:
 - `when_not_connected/2` applies a function to the socket only when the
   socket is not connected. A live navigation mounts a LiveView with a
   connected socket only, so this function does not always run.
+- `put_hook/4` attaches a lifecycle hook, and it replaces a hook with the
+  same id. A second call with the same id does not raise.
+
+Two modules under `ShoddyPhoenix.LiveView` help to build a widget, which is a
+part of a LiveView with its own state, events and messages:
+
+- `ShoddyPhoenix.LiveView.Subscriptions` subscribes a LiveView to a PubSub
+  topic for each owner, such as each instance of a widget. The LiveView then
+  receives each message one time.
+- `ShoddyPhoenix.LiveView.Widgets` sends the events of a widget to the code
+  of that widget. It also finds the instance that an event names, with no
+  new atom.
 
 The documentation of each component and each function gives the mistakes to
 avoid. Read it before you use the component or the function.
@@ -95,6 +107,7 @@ For one task, use a how-to guide:
 - [Wrap content only when a condition is true](docs/how-to/wrap-content-only-when-a-condition-is-true.md)
 - [Show a message for an empty list](docs/how-to/show-a-message-for-an-empty-list.md)
 - [Do work only after a LiveView connects](docs/how-to/do-work-only-after-a-liveview-connects.md)
+- [Build a widget with lifecycle hooks](docs/how-to/build-a-widget-with-lifecycle-hooks.md)
 
 For the facts about a function or a component, read the page of its module.
 

@@ -68,6 +68,9 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
 - Phoenix is the only required runtime dependency. `phoenix_live_view` is
   an optional dependency. Do not add another dependency before you discuss
   it with the maintainer.
+- Put a module that operates on the socket of a LiveView under
+  `ShoddyPhoenix.LiveView`. Put a module for templates, such as a module of
+  function components, at the top level.
 - Put a module that needs `phoenix_live_view` inside
   `if Code.ensure_loaded?(...) do`, with a module of `phoenix_live_view` that
   it uses, such as `Phoenix.Component` or `Phoenix.LiveView`. Then a project
