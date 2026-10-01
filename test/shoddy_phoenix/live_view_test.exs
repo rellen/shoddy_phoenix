@@ -5,10 +5,14 @@ defmodule ShoddyPhoenix.LiveViewTest do
   import Phoenix.LiveViewTest
 
   alias Phoenix.Component
+  alias Phoenix.LiveComponent.CID
+  alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
   alias ShoddyPhoenix.LiveView
   alias ShoddyPhoenix.Test.Endpoint
+  alias ShoddyPhoenix.Test.ParamsHookLive
   alias ShoddyPhoenix.Test.PubSub
+  alias ShoddyPhoenix.Test.Router
 
   @endpoint Endpoint
 
@@ -97,6 +101,93 @@ defmodule ShoddyPhoenix.LiveViewTest do
     test "raises FunctionClauseError for a function of another arity" do
       assert_raise FunctionClauseError, fn ->
         LiveView.when_not_connected(disconnected_socket(), opaque(fn -> :ok end))
+      end
+    end
+  end
+
+  describe "put_hook/4" do
+    # LiveView keeps the hooks in the private data of the socket. A socket
+    # with a router behaves as the socket of a LiveView that the router
+    # mounted.
+    defp hook_socket, do: %Socket{router: Router, private: %{lifecycle: %Lifecycle{}}}
+
+    defp on_event(_event, _params, socket), do: {:cont, socket}
+
+    test "replaces a hook with the same id and stage, where attach_hook/4 raises" do
+      socket = LiveView.put_hook(hook_socket(), :hook, :handle_event, &on_event/3)
+
+      assert %Socket{} = LiveView.put_hook(socket, :hook, :handle_event, &on_event/3)
+
+      assert_raise ArgumentError, ~r/existing hook :hook already attached on :handle_event/, fn ->
+        Phoenix.LiveView.attach_hook(socket, :hook, :handle_event, &on_event/3)
+      end
+    end
+
+    test "accepts the arity of the table for each stage" do
+      socket =
+        hook_socket()
+        |> LiveView.put_hook(:hook, :handle_event, fn _event, _params, socket -> {:cont, socket} end)
+        |> LiveView.put_hook(:hook, :handle_params, fn _params, _uri, socket -> {:cont, socket} end)
+        |> LiveView.put_hook(:hook, :handle_async, fn _key, _result, socket -> {:cont, socket} end)
+        |> LiveView.put_hook(:hook, :handle_info, fn _message, socket -> {:cont, socket} end)
+        |> LiveView.put_hook(:hook, :after_render, fn socket -> socket end)
+
+      assert %Socket{} = socket
+    end
+
+    test "raises FunctionClauseError for a function of another arity" do
+      two = opaque(fn _a, _b -> :ok end)
+      three = opaque(fn _a, _b, _c -> :ok end)
+
+      for {stage, fun} <- [
+            handle_event: two,
+            handle_params: two,
+            handle_async: two,
+            handle_info: three,
+            after_render: two
+          ] do
+        assert_raise FunctionClauseError, fn -> LiveView.put_hook(hook_socket(), :hook, stage, fun) end
+      end
+    end
+
+    test "raises FunctionClauseError for another stage or for a value that is not a socket" do
+      assert_raise FunctionClauseError, fn ->
+        LiveView.put_hook(hook_socket(), :hook, opaque(:mount), fn _socket -> :ok end)
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        LiveView.put_hook(opaque(%{}), :hook, :handle_info, fn _message, socket -> {:cont, socket} end)
+      end
+    end
+
+    test "puts a replaced hook at the end of the order, with its new function" do
+      {:ok, view, _html} = live(build_conn(), "/hook-order")
+
+      render_click(view, "go")
+
+      assert view |> element("#order") |> render() =~ ">second replacement<"
+    end
+
+    test "a :handle_params hook works only in a LiveView that the router mounted" do
+      {:ok, _view, html} = live(build_conn(), "/params-hook")
+      assert html =~ "hooked true"
+
+      assert_raise RuntimeError, ~r/not mounted at the router/, fn ->
+        live_isolated(build_conn(), ParamsHookLive)
+      end
+
+      conn = init_test_session(build_conn(), %{"child" => "params-hook"})
+
+      assert_raise ArgumentError, ~r"handle_params/3 is not allowed on child LiveViews", fn ->
+        get(conn, "/nested")
+      end
+    end
+
+    test "raises ArgumentError for a :handle_info hook on the socket of a LiveComponent" do
+      socket = %{hook_socket() | assigns: %{__changed__: %{}, myself: %CID{cid: 1}}}
+
+      assert_raise ArgumentError, ~r/lifecycle hooks are not supported on stateful components/, fn ->
+        LiveView.put_hook(socket, :hook, :handle_info, fn _message, socket -> {:cont, socket} end)
       end
     end
   end
