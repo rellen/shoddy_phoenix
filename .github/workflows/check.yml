@@ -196,10 +196,13 @@ jobs:
 
   # This job needs no build of the project, so it does not use the setup of
   # the other jobs. The cache keeps the dependencies of the scripts.
-  # Mix.install/2 compiles ShoddyPhoenix again when its code changes.
+  # Mix.install/2 compiles ShoddyPhoenix again when its code changes. A run
+  # takes about one minute. The time limit stops a script that does not end,
+  # because a run without a limit can continue for six hours.
   tutorials:
     name: tutorials
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
