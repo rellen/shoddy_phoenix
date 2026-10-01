@@ -67,6 +67,13 @@ To start a timer, use the same pattern. Call
 `:timer.send_interval(1000, :tick)` in the function, and handle `:tick` in
 `handle_info/2`.
 
+If several parts of the LiveView subscribe to one topic, use
+`ShoddyPhoenix.LiveView.Subscriptions` in place of `Phoenix.PubSub.subscribe/2`.
+The LiveView then has one subscription to the topic, and it receives each
+message one time. That module also does nothing in the disconnected render.
+[Build a widget with lifecycle hooks](build-a-widget-with-lifecycle-hooks.md)
+shows it.
+
 ## Show a placeholder until the LiveView connects
 
 Give the HTTP response another template with `Phoenix.LiveView.render_with/2`.
