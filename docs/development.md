@@ -133,9 +133,50 @@ Then do these steps:
 
 1. Add the document to the list `extras` in `mix.exs`.
 2. Add the document to the list of documents in `README.md`.
-3. Run each example of the document. No test runs the examples of a
-   document in `docs`.
+3. Run each example of the document. The job `tutorials` of the workflow
+   runs each tutorial, but no test runs the examples of the other documents.
 4. Compare the text with the rules for prose in `CLAUDE.md`.
+
+### Write a tutorial
+
+A tutorial is one script for `Mix.install/2`. The reader makes the script,
+and each step adds code to it. Obey these rules:
+
+- Start the first Elixir code block with the call of `Mix.install/2`. Get
+  ShoddyPhoenix with `{:shoddy_phoenix, github: "rellen/shoddy_phoenix"}`.
+- Put only code of the script into an Elixir code block. Show a command in a
+  `sh` block, and show output in a `text` block.
+- Put tests into the script, and start ExUnit with `ExUnit.start()`. ExUnit
+  then runs the tests when the script ends. Do not call `ExUnit.run/0`.
+- For a LiveView, use phoenix_playground and its module
+  `PhoenixPlayground.Test`.
+
+A step can replace code of an earlier step. Put this line in front of the
+earlier code block:
+
+```text
+<!-- tutorial: earlier version -->
+```
+
+Put this line in front of the code block that replaces it:
+
+```text
+<!-- tutorial: replaces the earlier version -->
+```
+
+The job `tutorials` puts the Elixir code blocks together in their order. It
+puts each replacement at the place of the earlier version. Then it runs the
+script with the code of the commit in place of ShoddyPhoenix from GitHub. A
+script that raises or has a failed test makes the job fail.
+
+Run the same check before a push. The first run gets and compiles the
+dependencies of each tutorial, so it is slow:
+
+```sh
+elixir .github/scripts/run_tutorials.exs
+```
+
+To run one tutorial, give its path as the argument.
 
 ## The workflow
 
