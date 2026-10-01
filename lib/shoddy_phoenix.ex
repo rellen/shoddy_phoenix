@@ -11,5 +11,7 @@ defmodule ShoddyPhoenix do
 
   - `ShoddyPhoenix.ControlFlow` has function components for control flow in
     HEEx templates. It needs the optional dependency `phoenix_live_view`.
+  - `ShoddyPhoenix.LiveView` has functions that operate on the socket of a
+    LiveView. It needs the optional dependency `phoenix_live_view`.
   """
 end
