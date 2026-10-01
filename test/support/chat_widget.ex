@@ -4,6 +4,7 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
   # lifecycle hooks". Only the name of the module and the PubSub server are
   # different.
   use Phoenix.Component
+  use ShoddyPhoenix.LiveView.Events, prefix: "chat"
 
   alias ShoddyPhoenix.LiveView
   alias ShoddyPhoenix.LiveView.Subscriptions
@@ -18,7 +19,7 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
     socket
     |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
-    |> Widgets.route_events("chat", &handle_event/3)
+    |> Widgets.route_events(event_prefix(), &handle_event/3)
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end
 
@@ -38,7 +39,7 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
       <ul>
         <li :for={message <- @state.messages}>{message}</li>
       </ul>
-      <form phx-submit="chat:send">
+      <form phx-submit={event("send")}>
         <input type="hidden" name="instance" value={@state.key} />
         <label>Message <input type="text" name="message" /></label>
         <button>Send</button>

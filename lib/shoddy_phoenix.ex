@@ -17,8 +17,10 @@ defmodule ShoddyPhoenix do
     topic for each owner.
   - `ShoddyPhoenix.LiveView.Widgets` sends the events of a widget to the code
     of that widget.
+  - `ShoddyPhoenix.LiveView.Events` makes the compiler warn about an event
+    name with no clause of `handle_event/3`.
 
-  A module that operates on the socket of a LiveView is under
+  A module that operates on a LiveView or on its socket is under
   `ShoddyPhoenix.LiveView`. A module for templates is at the top level.
   """
 end
