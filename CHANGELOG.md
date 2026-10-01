@@ -33,3 +33,7 @@ ShoddyPhoenix has no release yet. The first release contains these changes:
   topic, and it unsubscribes when the last owner unsubscribes.
 - Add `ShoddyPhoenix.LiveView.Widgets`, which sends the events of a widget to
   a function of the widget, and which finds the instance that an event names.
+- Add `ShoddyPhoenix.LiveView.Events`. Its macro `event/1` returns the name
+  of an event, and the compiler then warns about a name with no clause of
+  `handle_event/3`. Its option `:prefix` and its macro `event_prefix/0` are for
+  the events of a widget.

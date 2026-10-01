@@ -7,6 +7,7 @@ defmodule ShoddyPhoenix.Test.Router do
   alias ShoddyPhoenix.Test.AsyncLive
   alias ShoddyPhoenix.Test.ChatLive
   alias ShoddyPhoenix.Test.ConnectedOnlyLive
+  alias ShoddyPhoenix.Test.CounterLive
   alias ShoddyPhoenix.Test.GuideChatLive
   alias ShoddyPhoenix.Test.HookOrderLive
   alias ShoddyPhoenix.Test.LostAssignLive
@@ -37,5 +38,6 @@ defmodule ShoddyPhoenix.Test.Router do
     live "/guide-chat", GuideChatLive
     live "/reply", ReplyLive
     live "/nested", NestedLive
+    live "/counter", CounterLive
   end
 end

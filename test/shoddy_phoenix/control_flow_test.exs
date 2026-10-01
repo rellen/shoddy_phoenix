@@ -1,7 +1,7 @@
 defmodule ShoddyPhoenix.ControlFlowTest do
   use ExUnit.Case, async: true
 
-  import ExUnit.CaptureIO
+  import ExUnit.CaptureIO, only: [with_io: 2]
   import Phoenix.Component
   import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
   import ShoddyPhoenix.ControlFlow
@@ -10,6 +10,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
+  alias ShoddyPhoenix.Test.Warnings
 
   # The type checker of Elixir can warn about a literal such as %{user: nil}
   # that a later expression uses as a map. This helper returns its argument,
@@ -1099,6 +1100,8 @@ defmodule ShoddyPhoenix.ControlFlowTest do
   end
 
   describe "compile-time warnings" do
+    # LiveView also prints these warnings. with_io/2 hides that output, and
+    # Warnings.collect/1 returns the warnings of this process only.
     defp compile_warnings(name, template) do
       code = """
       defmodule ShoddyPhoenix.ControlFlowTest.#{name} do
@@ -1113,7 +1116,8 @@ defmodule ShoddyPhoenix.ControlFlowTest do
       end
       """
 
-      capture_io(:stderr, fn -> Code.compile_string(code) end)
+      {warnings, _output} = with_io(:stderr, fn -> Warnings.collect(fn -> Code.compile_string(code) end) end)
+      warnings
     end
 
     test "warns about a slot with no test" do
@@ -1155,10 +1159,7 @@ defmodule ShoddyPhoenix.ControlFlowTest do
       end
       """
 
-      errors =
-        capture_io(:stderr, fn ->
-          assert_raise CompileError, fn -> Code.compile_string(code) end
-        end)
+      errors = Warnings.collect(fn -> assert_raise CompileError, fn -> Code.compile_string(code) end end)
 
       assert errors =~ ~s(invalid arguments for "cond")
     end
