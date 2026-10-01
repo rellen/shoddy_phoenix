@@ -278,8 +278,10 @@ ShoddyPhoenix has it only in the test environment.
 
 ## The names of the modules
 
-ShoddyPhoenix puts a module that operates on the socket of a LiveView under
-`ShoddyPhoenix.LiveView`. It puts a module for templates at the top level.
+ShoddyPhoenix puts a module that operates on a LiveView or on its socket
+under `ShoddyPhoenix.LiveView`. For example, `ShoddyPhoenix.LiveView.Events`
+examines the code of a LiveView. ShoddyPhoenix puts a module for templates
+at the top level.
 
 A function component of `ShoddyPhoenix.ControlFlow` needs no socket. It
 works in each HEEx template, also in a template that a controller renders.
@@ -364,3 +366,53 @@ A tutorial must work each time. Thus the job `tutorials` of the workflow
 runs each tutorial against the code of the commit. A change that breaks a
 tutorial makes the workflow fail. phoenix_playground is a dependency of the
 tutorials only. ShoddyPhoenix does not depend on it.
+
+## Compile-time checks
+
+LiveView connects a template and its handlers with names. A template sends
+an event by its name, and it reads an assign by its key. The compiler does
+not compare these names, so a wrong name causes a crash at the run time.
+
+`ShoddyPhoenix.LiveView.Events` compares the event names. The type checker
+of Elixir 1.19 can compare the field names, but only for a struct. The guide
+[Catch mistakes at compile time](../how-to/catch-mistakes-at-compile-time.md)
+puts the state into a struct for that reason. A struct needs no code of
+ShoddyPhoenix, so ShoddyPhoenix has no module for it.
+
+### A warning, not an error
+
+The check gives a warning, as the type checker and the `attr` declarations
+of LiveView do. The compile continues, so one compile shows each mistake. A
+project that needs an error uses `mix compile --warnings-as-errors`.
+
+A wrong warning teaches a developer to ignore warnings. Thus the check warns
+only when it is sure. A clause of `handle_event/3` with a variable as its
+first argument can handle each name. Then the check gives no warning for that
+module. The check also does not warn about a clause that no template uses,
+because JavaScript can send that event.
+
+### Literal names only
+
+`event/1` accepts only a literal string. The value of a variable is known
+only at the run time. If `event/1` accepted a variable, the check would skip
+that name, and nothing would show the gap. The error at the compile time
+shows it.
+
+The option `:prefix` is also a literal string. With a module attribute,
+Quokka, the formatter plugin of this repository, changed the `use` into code
+that did not compile. A widget gives `event_prefix/0` to
+`ShoddyPhoenix.LiveView.Widgets.route_events/3`, so the name occurs one time
+only.
+
+### The check runs after the compile
+
+The check needs each call of `event/1` and each clause of `handle_event/3`.
+A LiveView with its template in a separate `.heex` file gets `render/1` from
+a `@before_compile` callback of LiveView. A `@before_compile` callback of
+`Events` could run before that callback, and it would then not see the
+template. That order depends on the order of the `use` lines.
+
+Thus the check is an `@after_compile` callback. Elixir calls it after each
+`@before_compile` callback, and `Module.get_definition/2` still returns the
+clauses of `handle_event/3`. The order of the `use` lines then does not
+matter.

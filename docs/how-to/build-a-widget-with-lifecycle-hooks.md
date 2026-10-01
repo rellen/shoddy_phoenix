@@ -10,13 +10,15 @@ LiveView calls before a callback of the LiveView, such as `handle_event/3`.
 [Phoenix LiveView widgets with hooks](https://curiosum.com/blog/hooking-up-with-liveview-stateful-widgets-with-function-components)
 of Curiosum describes this pattern.
 
-The widget uses three parts of ShoddyPhoenix:
+The widget uses four parts of ShoddyPhoenix:
 
 - `ShoddyPhoenix.LiveView.Subscriptions` subscribes the LiveView to the topic
   of each instance.
 - `ShoddyPhoenix.LiveView.Widgets` sends the events of the widget to the
   widget.
 - `ShoddyPhoenix.LiveView.put_hook/4` attaches the hook for the messages.
+- `ShoddyPhoenix.LiveView.Events` checks the event names of the widget at
+  the compile time.
 
 ## Put the state into a struct
 
@@ -26,6 +28,7 @@ LiveView. The key of the assign is the name of the instance:
 ```elixir
 defmodule MyAppWeb.ChatWidget do
   use Phoenix.Component
+  use ShoddyPhoenix.LiveView.Events, prefix: "chat"
 
   alias ShoddyPhoenix.LiveView
   alias ShoddyPhoenix.LiveView.Subscriptions
@@ -36,6 +39,9 @@ defmodule MyAppWeb.ChatWidget do
   defstruct [:key, :topic, messages: []]
 ```
 
+The option `prefix: "chat"` gives the name of the widget to
+`ShoddyPhoenix.LiveView.Events`. The sections below use it.
+
 ## Add an instance
 
 Add a function that puts an instance into the socket:
@@ -45,7 +51,7 @@ Add a function that puts an instance into the socket:
     socket
     |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
-    |> Widgets.route_events("chat", &handle_event/3)
+    |> Widgets.route_events(event_prefix(), &handle_event/3)
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end
 ```
@@ -58,6 +64,8 @@ Each step prevents one problem:
 - `Widgets.route_events/3` sends each event with a name that starts with
   `"chat:"` to `handle_event/3` of the widget. The LiveView never receives
   these events.
+  `event_prefix()` returns `"chat"`, so the name of the widget occurs one
+  time only.
 - `put_hook/4` attaches the hook for the messages. The second instance
   calls it again, and it replaces the hook with no error.
   `Phoenix.LiveView.attach_hook/4` raises in that case.
@@ -75,7 +83,7 @@ Add a function component for one instance:
       <ul>
         <li :for={message <- @state.messages}>{message}</li>
       </ul>
-      <form phx-submit="chat:send">
+      <form phx-submit={event("send")}>
         <input type="hidden" name="instance" value={@state.key} />
         <label>Message <input type="text" name="message" /></label>
         <button>Send</button>
@@ -85,8 +93,13 @@ Add a function component for one instance:
   end
 ```
 
-The name of each event starts with `"chat:"`. The hidden input tells the
-event which instance sent it.
+`event("send")` returns `"chat:send"`, so the name of each event starts with
+`"chat:"`. The hidden input tells the event which instance sent it.
+
+`event/1` also records the name `"send"`. If `handle_event/3` of the widget
+has no clause for `"send"`, the compiler gives a warning at the line of the
+form. Without `event/1`, a wrong name raises `FunctionClauseError` only when
+the form sends the event.
 
 ## Handle the events
 

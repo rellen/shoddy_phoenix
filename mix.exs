@@ -1,6 +1,7 @@
 defmodule ShoddyPhoenix.MixProject do
   use Mix.Project
 
+  alias ShoddyPhoenix.LiveView.Events
   alias ShoddyPhoenix.LiveView.Subscriptions
   alias ShoddyPhoenix.LiveView.Widgets
 
@@ -64,12 +65,14 @@ defmodule ShoddyPhoenix.MixProject do
         "README.md",
         "docs/tutorials/get-started.md",
         "docs/tutorials/see-the-two-renders-of-a-liveview.md",
+        "docs/tutorials/find-mistakes-before-a-liveview-runs.md",
         "docs/how-to/replace-a-cond-block-in-a-template.md",
         "docs/how-to/render-a-result-in-a-template.md",
         "docs/how-to/wrap-content-only-when-a-condition-is-true.md",
         "docs/how-to/show-a-message-for-an-empty-list.md",
         "docs/how-to/do-work-only-after-a-liveview-connects.md",
         "docs/how-to/build-a-widget-with-lifecycle-hooks.md",
+        "docs/how-to/catch-mistakes-at-compile-time.md",
         "docs/explanation/design.md",
         "docs/development.md"
       ],
@@ -82,8 +85,9 @@ defmodule ShoddyPhoenix.MixProject do
       ],
       groups_for_modules: [
         Components: [ShoddyPhoenix.ControlFlow],
-        "LiveView sockets": [
+        LiveView: [
           ShoddyPhoenix.LiveView,
+          Events,
           Subscriptions,
           Widgets
         ]

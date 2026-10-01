@@ -56,6 +56,11 @@ part of a LiveView with its own state, events and messages:
   of that widget. It also finds the instance that an event names, with no
   new atom.
 
+`ShoddyPhoenix.LiveView.Events` finds a wrong event name at the compile
+time. Write each event name of a template with its macro `event/1`, as in
+`phx-click={event("save")}`. The compiler then gives a warning for a name
+with no clause of `handle_event/3`.
+
 The documentation of each component and each function gives the mistakes to
 avoid. Read it before you use the component or the function.
 
@@ -86,7 +91,8 @@ To use the components in each template, import
 `ShoddyPhoenix.ControlFlow` in the function `html_helpers/0` of
 `lib/my_app_web.ex`, next to your core components. To use
 `ShoddyPhoenix.LiveView` in each LiveView, alias it in the function
-`live_view/0` of the same file.
+`live_view/0` of the same file. To check the event names of each
+LiveView, add `use ShoddyPhoenix.LiveView.Events` to the same function.
 
 ShoddyPhoenix does not add Shoddy to your project. To use the functions of
 Shoddy, add `{:shoddy, github: "rellen/shoddy"}` to the list.
@@ -101,6 +107,7 @@ that you run with `elixir`:
 
 - [Get started with ShoddyPhoenix](docs/tutorials/get-started.md)
 - [See the two renders of a LiveView](docs/tutorials/see-the-two-renders-of-a-liveview.md)
+- [Find mistakes before a LiveView runs](docs/tutorials/find-mistakes-before-a-liveview-runs.md)
 
 For one task, use a how-to guide:
 
@@ -110,6 +117,7 @@ For one task, use a how-to guide:
 - [Show a message for an empty list](docs/how-to/show-a-message-for-an-empty-list.md)
 - [Do work only after a LiveView connects](docs/how-to/do-work-only-after-a-liveview-connects.md)
 - [Build a widget with lifecycle hooks](docs/how-to/build-a-widget-with-lifecycle-hooks.md)
+- [Catch mistakes at compile time](docs/how-to/catch-mistakes-at-compile-time.md)
 
 For the facts about a function or a component, read the page of its module.
 
