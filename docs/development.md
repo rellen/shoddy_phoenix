@@ -70,23 +70,33 @@ function component an `attr` or a `slot` declaration for each input, with a
 `doc:` option.
 
 `phoenix_live_view` is an optional dependency. Put a module that needs it
-inside `if Code.ensure_loaded?(Phoenix.Component) do`, as in
-`lib/shoddy_phoenix/control_flow.ex`. Without that dependency, the file then
-defines no module. `mix check` compiles the project without the dependency,
-and it fails for a warning.
+inside `if Code.ensure_loaded?(...) do`, with a module of `phoenix_live_view`
+that it uses. `lib/shoddy_phoenix/control_flow.ex` uses `Phoenix.Component`,
+and `lib/shoddy_phoenix/live_view.ex` uses `Phoenix.LiveView`. Without that
+dependency, the file then defines no module. `mix check` compiles the
+project without the dependency, and it fails for a warning.
 
 ## Write tests
 
 Give each module these tests:
 
-- For a function, a doctest for each example in its `@doc`.
+- For a function that does not need a LiveView, a doctest for each example
+  in its `@doc`.
 - For a function component, a test that renders each example of its `@doc`
   with `Phoenix.LiveViewTest.rendered_to_string/1`.
+- For a function that operates on the socket of a LiveView, a LiveView in
+  `test/support` for each example of its `@doc`. A test renders that
+  LiveView with `Phoenix.LiveViewTest.live/2`.
 - A file with the suffix `_test.exs` in `test/`, with the usual ExUnit
   tests.
 - A file with the suffix `_property_test.exs` in `test/`, with property
   tests. A property test uses StreamData to make many random inputs. It
   examines a rule that must be true for each input.
+
+The directory `test/support` contains a test endpoint, a router and the
+LiveViews of the tests. Only the test environment compiles it.
+`test/test_helper.exs` starts the endpoint. `Phoenix.LiveViewTest.live/2`
+needs the test dependency `lazy_html`.
 
 To find a gap in the tests, run mutation testing:
 

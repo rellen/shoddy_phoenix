@@ -35,16 +35,17 @@ two examples:
 
 ## Phoenix LiveView is optional
 
-`ShoddyPhoenix.ControlFlow` needs `Phoenix.Component`, which is part of
+`ShoddyPhoenix.ControlFlow` needs `Phoenix.Component`, and
+`ShoddyPhoenix.LiveView` needs `Phoenix.LiveView`. Both are modules of
 Phoenix LiveView. Some Phoenix applications do not use LiveView. An example
 is an application that returns only JSON. Thus `phoenix_live_view` is an
 optional dependency of ShoddyPhoenix.
 
 Mix does not add an optional dependency of ShoddyPhoenix to the project of
-a user. A project that lists `phoenix_live_view` gets
-`ShoddyPhoenix.ControlFlow`, and Mix applies the version requirement of
-ShoddyPhoenix to it. A project without `phoenix_live_view` can still compile
-ShoddyPhoenix, but it does not get that module.
+a user. A project that lists `phoenix_live_view` gets the two modules, and
+Mix applies the version requirement of ShoddyPhoenix to it. A project
+without `phoenix_live_view` can still compile ShoddyPhoenix, but it does not
+get these modules.
 
 ## The names of the components
 
@@ -219,3 +220,58 @@ Each component selects the branch in plain Elixir. Each outcome returns one
 small template that contains only the selected body. Thus a component adds
 no whitespace around the body. `Phoenix.Component.async_result/1` has the
 same shape.
+
+## The check of the socket
+
+`Shoddy.then_if/3` can already apply a function when a predicate is truthy:
+
+```elixir
+Shoddy.then_if(socket, &Phoenix.LiveView.connected?/1, &subscribe/1)
+```
+
+`ShoddyPhoenix.LiveView.when_connected/2` returns the same result for a
+function that returns a socket. It has two differences:
+
+- Its name tells the condition. A reader does not need to read a predicate.
+- It raises `ArgumentError` when the function does not return a socket.
+  `Shoddy.then_if/3` accepts each value, so it cannot do this check.
+
+The usual mistake is a function that ends with `Phoenix.PubSub.subscribe/2`.
+That function returns `:ok`, not the socket. Without the check, the next
+step of the pipeline or LiveView receives `:ok`. Its error names that step or
+`mount/3`, and it does not name the function that returned `:ok`.
+
+## Why when_not_connected exists
+
+`when_not_connected/2` does not always run. A live navigation mounts a
+LiveView with a connected socket only. Also, the connected process does not
+get the assigns of the disconnected render. Thus the function can change
+only the HTML of the HTTP response.
+
+The documentation of `Phoenix.LiveView.render_with/2` shows such a change.
+The HTTP response has a placeholder, and the connected render has the full
+template. `when_not_connected/2` exists for that case, and its documentation
+starts with a warning about the other cases.
+
+## The name of the LiveView module
+
+Shoddy gives some modules a name in the plural, such as `Shoddy.Maps`. Thus
+an alias of the module does not hide a standard module, such as `Map`.
+
+`ShoddyPhoenix.LiveView` ends with `LiveView`, as `Phoenix.LiveView` does,
+because its functions operate on the same socket. Its alias `LiveView` hides
+no standard module. If a module already has the alias `LiveView` for
+`Phoenix.LiveView`, the option `:as` of `alias` gives `ShoddyPhoenix.LiveView`
+another name.
+
+## Tests with real LiveViews
+
+The documentation of `ShoddyPhoenix.LiveView` describes the life cycle of a
+LiveView, such as the two renders and the live navigation. These are facts
+about LiveView, not about ShoddyPhoenix.
+
+The tests render real LiveViews through a test endpoint. Thus a new version
+of LiveView that changes such a fact makes a test fail, and the
+documentation does not become wrong without a warning.
+`Phoenix.LiveViewTest.live/2` needs the test dependency `lazy_html`, so
+ShoddyPhoenix has it only in the test environment.

@@ -34,8 +34,18 @@ HEEx templates:
 - `each/1` renders its content for each item of a list, or an `<:empty>`
   slot for an empty list. It does not accept a LiveView stream.
 
-The documentation of each component gives the mistakes to avoid. Read it
-before you use the component.
+`ShoddyPhoenix.LiveView` has two functions that operate on the socket of a
+LiveView:
+
+- `when_connected/2` applies a function to the socket only when the socket
+  is connected. Use it, for example, to subscribe to a PubSub topic in
+  `mount/3`.
+- `when_not_connected/2` applies a function to the socket only when the
+  socket is not connected. A live navigation mounts a LiveView with a
+  connected socket only, so this function does not always run.
+
+The documentation of each component and each function gives the mistakes to
+avoid. Read it before you use the component or the function.
 
 ## Installation
 
@@ -53,15 +63,18 @@ end
 ShoddyPhoenix needs Elixir 1.19 or a later version. It also needs Phoenix
 1.8 or a later version before 2.0.
 
-`ShoddyPhoenix.ControlFlow` also needs `phoenix_live_view` 1.2 or a later
-version before 2.0. ShoddyPhoenix does not add `phoenix_live_view` to your
-project, because it is an optional dependency. An application with HTML
-pages from `mix phx.new` 1.8.15 has it already. An older application can need
-the version requirement `"~> 1.2"` for `phoenix_live_view` in its `mix.exs`.
+`ShoddyPhoenix.ControlFlow` and `ShoddyPhoenix.LiveView` also need
+`phoenix_live_view` 1.2 or a later version before 2.0. ShoddyPhoenix does
+not add `phoenix_live_view` to your project, because it is an optional
+dependency. An application with HTML pages from `mix phx.new` 1.8.15 has it
+already. An older application can need the version requirement `"~> 1.2"`
+for `phoenix_live_view` in its `mix.exs`.
 
 To use the components in each template, import
 `ShoddyPhoenix.ControlFlow` in the function `html_helpers/0` of
-`lib/my_app_web.ex`, next to your core components.
+`lib/my_app_web.ex`, next to your core components. To use
+`ShoddyPhoenix.LiveView` in each LiveView, alias it in the function
+`live_view/0` of the same file.
 
 ShoddyPhoenix does not add Shoddy to your project. To use the functions of
 Shoddy, add `{:shoddy, github: "rellen/shoddy"}` to the list.
@@ -81,6 +94,7 @@ For one task, use a how-to guide:
 - [Render a result in a template](docs/how-to/render-a-result-in-a-template.md)
 - [Wrap content only when a condition is true](docs/how-to/wrap-content-only-when-a-condition-is-true.md)
 - [Show a message for an empty list](docs/how-to/show-a-message-for-an-empty-list.md)
+- [Do work only after a LiveView connects](docs/how-to/do-work-only-after-a-liveview-connects.md)
 
 For the facts about a function or a component, read the page of its module.
 
