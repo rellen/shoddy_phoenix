@@ -163,8 +163,14 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
 - The documents in `docs` follow Diátaxis. Put a new document into the
   directory of its type, and add it to `mix.exs` and `README.md`.
   `docs/development.md` gives the four types.
-- Run each example of a new document before you commit it. No test runs
-  the examples of a document in `docs`.
+- Run each example of a new document before you commit it. Only the job
+  `tutorials` runs the examples of a document, and it runs only the
+  tutorials.
+- Write each tutorial as one script for `Mix.install/2`. The job
+  `tutorials` of the workflow puts the Elixir code blocks of a tutorial
+  together, and it runs the result. `docs/development.md` tells how to write
+  such a tutorial. Run `elixir .github/scripts/run_tutorials.exs` to check
+  the tutorials before a push.
 
 ## Code Style
 

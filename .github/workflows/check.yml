@@ -22,6 +22,11 @@
 # project. Thus, if the tests fail with no mutation, muex reports each mutant
 # as killed and gives a score of 100%. The job `test` stops that false score.
 #
+# The job `tutorials` runs the code of each tutorial in `docs/tutorials` with
+# `.github/scripts/run_tutorials.exs`. `mix check` does not run it, because it
+# needs the network and some minutes. A tutorial is one script for
+# `Mix.install/2`, and the job runs it against the code of the commit.
+#
 # The job `all` needs each job except `mutation` and `pages`, and it fails when
 # one of them does not succeed. Use the name of that job in a branch protection
 # rule.
@@ -189,10 +194,30 @@ jobs:
           path: _build/muex-report.json
           if-no-files-found: ignore
 
+  # This job needs no build of the project, so it does not use the setup of
+  # the other jobs. The cache keeps the dependencies of the scripts.
+  # Mix.install/2 compiles ShoddyPhoenix again when its code changes.
+  tutorials:
+    name: tutorials
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/mix/installs
+          key: tutorials-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('docs/tutorials/*.md') }}
+          restore-keys: |
+            tutorials-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+      - run: elixir .github/scripts/run_tutorials.exs
+
   all:
     name: Erlang/OTP 28, Elixir 1.19
     if: always()
-    needs: [format, lint, dialyzer, test]
+    needs: [format, lint, dialyzer, test, tutorials]
     runs-on: ubuntu-latest
     steps:
       - name: Fail when a check does not succeed
