@@ -69,11 +69,14 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
   an optional dependency. Do not add another dependency before you discuss
   it with the maintainer.
 - Put a module that needs `phoenix_live_view` inside
-  `if Code.ensure_loaded?(Phoenix.Component) do`. Then a project without
-  LiveView can still compile ShoddyPhoenix.
+  `if Code.ensure_loaded?(...) do`, with a module of `phoenix_live_view` that
+  it uses, such as `Phoenix.Component` or `Phoenix.LiveView`. Then a project
+  without LiveView can still compile ShoddyPhoenix.
 - Test each function component with
-  `Phoenix.LiveViewTest.rendered_to_string/1`. Give each claim of its `@doc`
-  a test.
+  `Phoenix.LiveViewTest.rendered_to_string/1`. Test each function that
+  operates on the socket of a LiveView through a LiveView in `test/support`,
+  with `Phoenix.LiveViewTest.live/2`. Give each claim of a `@doc` or a
+  `@moduledoc` a test.
 
 `docs/explanation/design.md` gives the reasons for these rules.
 
