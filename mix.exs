@@ -63,6 +63,7 @@ defmodule ShoddyPhoenix.MixProject do
       extras: [
         "README.md",
         "docs/tutorials/get-started.md",
+        "docs/tutorials/see-the-two-renders-of-a-liveview.md",
         "docs/how-to/replace-a-cond-block-in-a-template.md",
         "docs/how-to/render-a-result-in-a-template.md",
         "docs/how-to/wrap-content-only-when-a-condition-is-true.md",

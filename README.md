@@ -96,9 +96,11 @@ Shoddy, add `{:shoddy, github: "rellen/shoddy"}` to the list.
 The site https://rellen.github.io/shoddy_phoenix/ has the documentation of
 each module and each document below.
 
-To learn the library, start with the tutorial:
+To learn the library, start with the tutorials. Each tutorial is one script
+that you run with `elixir`:
 
 - [Get started with ShoddyPhoenix](docs/tutorials/get-started.md)
+- [See the two renders of a LiveView](docs/tutorials/see-the-two-renders-of-a-liveview.md)
 
 For one task, use a how-to guide:
 
