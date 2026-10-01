@@ -65,6 +65,11 @@ dependency of Phoenix such as Plug, or Phoenix LiveView. Put each other
 function into Shoddy.
 [The design of ShoddyPhoenix](explanation/design.md) tells why.
 
+Put a module that operates on the socket of a LiveView under
+`ShoddyPhoenix.LiveView`, as `lib/shoddy_phoenix/live_view/widgets.ex` is.
+Put a module for templates at the top level, as
+`lib/shoddy_phoenix/control_flow.ex` is.
+
 Give each public function a `@doc` with examples, and a `@spec`. Give each
 function component an `attr` or a `slot` declaration for each input, with a
 `doc:` option.

@@ -68,6 +68,7 @@ defmodule ShoddyPhoenix.MixProject do
         "docs/how-to/wrap-content-only-when-a-condition-is-true.md",
         "docs/how-to/show-a-message-for-an-empty-list.md",
         "docs/how-to/do-work-only-after-a-liveview-connects.md",
+        "docs/how-to/build-a-widget-with-lifecycle-hooks.md",
         "docs/explanation/design.md",
         "docs/development.md"
       ],
