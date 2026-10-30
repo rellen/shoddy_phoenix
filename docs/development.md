@@ -6,8 +6,8 @@ message and for prose.
 
 ## Set up the project
 
-The project uses Erlang 28.3.3 and Elixir 1.19.5. With Nix, start a shell
-that has Erlang 28 and Elixir 1.19:
+The project uses Erlang 28.5.0.8 and Elixir 1.20.5. With Nix, start a shell
+that has Erlang 28 and Elixir 1.20:
 
 ```sh
 devenv shell

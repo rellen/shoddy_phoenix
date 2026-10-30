@@ -57,8 +57,8 @@ concurrency:
 
 env:
   # The versions of `.tool-versions`.
-  OTP_VERSION: "28.3.3"
-  ELIXIR_VERSION: "1.19.5-otp-28"
+  OTP_VERSION: "28.5.0.8"
+  ELIXIR_VERSION: "1.20.5-otp-28"
 
 jobs:
   format:
@@ -218,7 +218,7 @@ jobs:
       - run: elixir .github/scripts/run_tutorials.exs
 
   all:
-    name: Erlang/OTP 28, Elixir 1.19
+    name: Erlang/OTP 28, Elixir 1.20
     if: always()
     needs: [format, lint, dialyzer, test, tutorials]
     runs-on: ubuntu-latest
