@@ -7,6 +7,6 @@
   };
   languages.elixir = {
     enable = true;
-    package = pkgs.beam.packages.erlang_28.elixir_1_19;
+    package = pkgs.beam.packages.erlang_28.elixir_1_20;
   };
 }
