@@ -179,7 +179,7 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
 
     defp route(event, params, socket, name, prefix, handler) do
       case event do
-        <<^prefix::binary-size(byte_size(prefix)), action::binary>> ->
+        ^prefix <> action ->
           case handler.(action, params, socket) do
             {:noreply, %Socket{} = socket} ->
               {:halt, socket}
