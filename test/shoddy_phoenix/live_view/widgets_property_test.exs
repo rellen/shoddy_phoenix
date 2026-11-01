@@ -2,6 +2,8 @@ defmodule ShoddyPhoenix.LiveView.WidgetsPropertyTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
+  import Shoddy.Tagging, only: [noreply: 1]
+
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
   alias ShoddyPhoenix.LiveView.Widgets
@@ -61,12 +63,12 @@ defmodule ShoddyPhoenix.LiveView.WidgetsPropertyTest do
   # whether the hook called the handler.
   defp handler(action, _params, socket) do
     send(self(), {:handled, action})
-    {:noreply, socket}
+    noreply(socket)
   end
 
   defp instance_handler(action, _params, instance, socket) do
     send(self(), {:handled, action, instance})
-    {:noreply, socket}
+    noreply(socket)
   end
 
   defp action, do: string([?a, ?b, ?:], max_length: 3)

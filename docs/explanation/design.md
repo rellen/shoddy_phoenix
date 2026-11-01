@@ -21,6 +21,16 @@ package to it.
 ShoddyPhoenix can have Shoddy as a dependency. Shoddy never has
 ShoddyPhoenix as a dependency, because Shoddy must not get Phoenix.
 
+Today Shoddy is a test dependency only. The test files, and the modules of
+`test/support` that exist only for the tests, return their tagged tuples
+with `Shoddy.Tagging`. Thus the tests use the two libraries together, as an
+application does.
+
+A module of `test/support` that is the example of a document keeps the
+tuple of the document, such as `{:noreply, socket}`. A reader of the
+document then needs no Shoddy, because ShoddyPhoenix does not add it to a
+project.
+
 ## The same conventions
 
 ShoddyPhoenix obeys
