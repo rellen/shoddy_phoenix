@@ -51,7 +51,7 @@ Add a function that puts an instance into the socket:
     socket
     |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
-    |> Widgets.route_events(event_prefix(), &handle_event/3)
+    |> Widgets.route_instance_events(event_prefix(), __MODULE__, &handle_event/4, actions: ["send"])
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end
 ```
@@ -61,11 +61,13 @@ Each step prevents one problem:
 - `Subscriptions.subscribe/4` records the key as an owner of the topic. Two
   instances on one topic give the LiveView one subscription, so each message
   arrives one time. The function does nothing in the disconnected render.
-- `Widgets.route_events/3` sends each event with a name that starts with
-  `"chat:"` to `handle_event/3` of the widget. The LiveView never receives
-  these events.
-  `event_prefix()` returns `"chat"`, so the name of the widget occurs one
-  time only.
+- `Widgets.route_instance_events/5` sends each event with a name that
+  starts with `"chat:"` to `handle_event/4` of the widget. The LiveView
+  never receives these events. `event_prefix()` returns `"chat"`, so the
+  name of the widget occurs one time only.
+- The option `actions: ["send"]` gives the actions of the widget. The hook
+  halts an event with another action, such as `"chat:clear"` from a client.
+  Then the handler needs no clause for it.
 - `put_hook/4` attaches the hook for the messages. The second instance
   calls it again, and it replaces the hook with no error.
   `Phoenix.LiveView.attach_hook/4` raises in that case.
@@ -96,38 +98,42 @@ Add a function component for one instance:
 `event("send")` returns `"chat:send"`, so the name of each event starts with
 `"chat:"`. The hidden input tells the event which instance sent it.
 
-`event/1` also records the name `"send"`. If `handle_event/3` of the widget
+`event/1` also records the name `"send"`. If `handle_event/4` of the widget
 has no clause for `"send"`, the compiler gives a warning at the line of the
 form. Without `event/1`, a wrong name raises `FunctionClauseError` only when
 the form sends the event.
 
 ## Handle the events
 
-`Widgets.route_events/3` removes `"chat:"` from the name of the event. Thus
-the handler receives `"send"`:
+`Widgets.route_instance_events/5` removes `"chat:"` from the name of the
+event, and it finds the instance that the parameter `"instance"` names. Thus
+the handler receives `"send"`, the parameters, and the key and the struct of
+the instance:
 
 ```elixir
-  defp handle_event("send", %{"instance" => instance, "message" => message}, socket)
-       when is_binary(message) do
-    with {:ok, {_key, state}} <- Widgets.fetch_instance(socket, __MODULE__, instance),
-         message when message != "" <- String.trim(message) do
+  defp handle_event("send", %{"message" => message}, {_key, state}, socket) when is_binary(message) do
+    with message when message != "" <- String.trim(message) do
       Phoenix.PubSub.broadcast(@pubsub, state.topic, {__MODULE__, state.topic, message})
     end
 
     {:noreply, socket}
   end
 
-  defp handle_event("send", _params, socket), do: {:noreply, socket}
+  defp handle_event("send", _params, _instance, socket), do: {:noreply, socket}
 ```
 
 The client chooses each parameter, so do not trust the parameters:
 
-- `Widgets.fetch_instance/3` returns `:error` for a wrong instance. Then the
-  `with` does nothing. Do not convert the parameter into an atom.
+- The hook halts an event with no parameter `"instance"`, or with a
+  parameter that names no instance. It does not call the handler for such
+  an event. The hook uses `Widgets.fetch_instance/3`, which makes no atom.
 - The guard `is_binary(message)` rejects a message that is not a string.
-- The second clause accepts each other form of the event. Without it, an
-  event with other parameters raises `FunctionClauseError`, and the
+- The second clause accepts each other form of the event `"send"`. Without
+  it, an event with other parameters raises `FunctionClauseError`, and the
   LiveView crashes.
+
+The handler gets the key of the assign too. To change the instance, put the
+new struct into that assign, as in `assign(socket, key, new_state)`.
 
 ## Handle the messages
 
@@ -216,5 +222,6 @@ A message from one instance shows in each instance, one time.
 - The socket of a LiveComponent does not accept a `:handle_info` hook. Thus
   `assign_widget/3` needs the socket of the LiveView, not the socket of a
   LiveComponent.
-- Each name of a widget belongs to one module. `Widgets.route_events/3`
-  raises `ArgumentError` when another module asks for the name `"chat"`.
+- Each name of a widget belongs to one module.
+  `Widgets.route_instance_events/5` raises `ArgumentError` when another
+  module asks for the name `"chat"`.

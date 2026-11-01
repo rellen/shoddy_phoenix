@@ -54,7 +54,7 @@ part of a LiveView with its own state, events and messages:
   receives each message one time.
 - `ShoddyPhoenix.LiveView.Widgets` sends the events of a widget to the code
   of that widget. It also finds the instance that an event names, with no
-  new atom.
+  new atom, and it can halt an action that the widget does not have.
 
 `ShoddyPhoenix.LiveView.Events` finds a wrong event name at the compile
 time. Write each event name of a template with its macro `event/1`, as in
