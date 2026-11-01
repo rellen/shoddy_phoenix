@@ -33,35 +33,53 @@ If a LiveComponent uses the module, add the same alias to the function
 
 ## Subscribe to a topic
 
-Assign each value that the template needs. Then subscribe in the function of
-`when_connected/2`:
+Subscribe first. Then read the state, and assign it:
 
 ```elixir
 def mount(_params, _session, socket) do
   socket =
     socket
-    |> assign(:messages, [])
     |> LiveView.when_connected(&subscribe/1)
+    |> assign(:messages, MyApp.Messages.list_recent())
 
   {:ok, socket}
 end
 
 def handle_info({:new_message, message}, socket) do
-  {:noreply, update(socket, :messages, &[message | &1])}
+  {:noreply, update(socket, :messages, &put_message(&1, message))}
 end
 
 defp subscribe(socket) do
   Phoenix.PubSub.subscribe(MyApp.PubSub, "messages")
   socket
 end
+
+defp put_message(messages, message) do
+  [message | Enum.reject(messages, &(&1.id == message.id))]
+end
 ```
 
-The function must return the socket. `Phoenix.PubSub.subscribe/2` returns
-`:ok`, so `subscribe/1` returns the socket after that call.
+The function of `when_connected/2` must return the socket.
+`Phoenix.PubSub.subscribe/2` returns `:ok`, so `subscribe/1` returns the
+socket after that call.
 
-Do not move `assign(:messages, [])` into the function. The disconnected
-render also renders the template, and it raises `KeyError` for an assign that
-does not exist.
+Do not change the order of the two steps. If the LiveView reads first, it
+loses each change between the read and the subscription. It gets no message
+for such a change, so the page shows the old state.
+
+A message can also arrive for a change that the read already contains. A
+change between the subscription and the read is in the state, and its message
+also arrives. Thus write `handle_info/2` so that such a message changes
+nothing. `put_message/2` replaces a message by its id, so the message does
+not show two times.
+
+The section "Subscribe before you read" of `ShoddyPhoenix.LiveView` gives
+these rules. [The design of ShoddyPhoenix](../explanation/design.md) tells
+why the library has no function that sets the order.
+
+Do not move the `assign` into the function. The disconnected render also
+renders the template, and it raises `KeyError` for an assign that does not
+exist.
 
 To start a timer, use the same pattern. Call
 `:timer.send_interval(1000, :tick)` in the function, and handle `:tick` in

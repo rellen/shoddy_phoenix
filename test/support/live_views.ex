@@ -153,19 +153,20 @@ defmodule ShoddyPhoenix.Test.SubscribeLive do
   use Phoenix.LiveView
 
   alias ShoddyPhoenix.LiveView
+  alias ShoddyPhoenix.Test.Messages
   alias ShoddyPhoenix.Test.PubSub
 
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:messages, [])
       |> LiveView.when_connected(&subscribe/1)
+      |> assign(:messages, Messages.list_recent())
 
     {:ok, socket}
   end
 
   def handle_info({:new_message, message}, socket) do
-    {:noreply, update(socket, :messages, &[message | &1])}
+    {:noreply, update(socket, :messages, &put_message(&1, message))}
   end
 
   defp subscribe(socket) do
@@ -173,7 +174,13 @@ defmodule ShoddyPhoenix.Test.SubscribeLive do
     socket
   end
 
-  def render(assigns), do: ~H"<p :for={message <- @messages}>{message}</p>"
+  # The read of mount/3 can already contain the message. Then this function
+  # replaces that message, and it does not add the message a second time.
+  defp put_message(messages, message) do
+    [message | Enum.reject(messages, &(&1.id == message.id))]
+  end
+
+  def render(assigns), do: ~H"<p :for={message <- @messages}>{message.text}</p>"
 end
 
 defmodule ShoddyPhoenix.Test.ConnectedOnlyLive do
