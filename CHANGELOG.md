@@ -37,3 +37,11 @@ ShoddyPhoenix has no release yet. The first release contains these changes:
   of an event, and the compiler then warns about a name with no clause of
   `handle_event/3`. Its option `:prefix` and its macro `event_prefix/0` are for
   the events of a widget.
+- Add the option `:actions` to `ShoddyPhoenix.LiveView.Widgets.route_events/4`.
+  The hook then halts each other action of the widget, and it does not call
+  the handler. `route_events/3` stays, with no options.
+- Add `ShoddyPhoenix.LiveView.Widgets.route_instance_events/5`. It finds the
+  instance that an event names, and it gives the key and the struct of the
+  instance to the handler. It halts an event that names no instance.
+- `ShoddyPhoenix.LiveView.Events` now also reads the clauses of
+  `handle_event/4`, the handler of `route_instance_events/5`.

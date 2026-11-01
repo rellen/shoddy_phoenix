@@ -4,10 +4,12 @@ defmodule ShoddyPhoenix.Test.Router do
 
   import Phoenix.LiveView.Router
 
+  alias ShoddyPhoenix.Test.ActionsLive
   alias ShoddyPhoenix.Test.AsyncLive
   alias ShoddyPhoenix.Test.ChatLive
   alias ShoddyPhoenix.Test.ConnectedOnlyLive
   alias ShoddyPhoenix.Test.CounterLive
+  alias ShoddyPhoenix.Test.CountersLive
   alias ShoddyPhoenix.Test.GuideChatLive
   alias ShoddyPhoenix.Test.HookOrderLive
   alias ShoddyPhoenix.Test.LostAssignLive
@@ -39,5 +41,7 @@ defmodule ShoddyPhoenix.Test.Router do
     live "/reply", ReplyLive
     live "/nested", NestedLive
     live "/counter", CounterLive
+    live "/actions", ActionsLive
+    live "/counters", CountersLive
   end
 end
