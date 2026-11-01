@@ -306,26 +306,43 @@ that a LiveView adds two times thus causes no problem.
 
 ## The name of a widget
 
-`ShoddyPhoenix.LiveView.Widgets.route_events/3` adds the colon to the name
+`ShoddyPhoenix.LiveView.Widgets.route_events/4` adds the colon to the name
 of the widget. If the caller gave the full prefix, the prefix `"chat"` would
 also own the event `"chatter:send"`.
 
 One name belongs to one module. Each name has one hook, so a second module
 with the same name would replace the hook of the first module. The events of
 the first widget would then go to the wrong handler. Thus
-`route_events/3` raises `ArgumentError`, and the mistake shows when the
+`route_events/4` raises `ArgumentError`, and the mistake shows when the
 LiveView mounts.
 
 ## Errors in the handler of a widget
 
-`route_events/3` halts each event of the widget, also an event that the
+`route_events/4` halts each event of the widget, also an event that the
 handler cannot handle. The event never goes to the LiveView, because the
 LiveView does not know the events of the widget.
 
-`route_events/3` does not catch `FunctionClauseError`. The handler can call
+`route_events/4` does not catch `FunctionClauseError`. The handler can call
 another function that raises the same error, and a catch would hide that
 error. A `handle_event/3` with no clause for an event also raises. Thus the
 documentation asks for a clause for each event of a widget.
+
+### A list of actions
+
+A client can send an event with each name, for example from a page of an
+older release. A last clause that accepts each action prevents the crash.
+That clause has a variable as its first argument, so it also stops the
+check of `ShoddyPhoenix.LiveView.Events`.
+
+The option `:actions` prevents the crash in another way. The hook compares
+the action with the list before it calls the handler, and it halts each
+other action. The handler then needs no last clause, and the check stays
+on. A wrong name in the list gives no warning, but the event of that name
+then does nothing. It does not crash the LiveView.
+
+An option that catches `FunctionClauseError` was the other choice. It is not
+in the library, because it can hide an error that a function of the handler
+raises.
 
 ## The instance of an event
 
@@ -338,6 +355,18 @@ errors crash the LiveView.
 `ShoddyPhoenix.LiveView.Widgets.fetch_instance/3` compares strings, and it
 examines only the assigns that contain a struct of the widget. It makes no
 atom, and it returns `:error` for each other value.
+
+`ShoddyPhoenix.LiveView.Widgets.route_instance_events/5` calls
+`fetch_instance/3` before the handler. Each handler of a widget with
+instances starts with that call, and the call is easy to forget. The hook
+halts an event that names no instance, because the event has nothing to
+change. For example, a page can still show an instance that the LiveView
+removed.
+
+The handler gets the key of the assign and the struct, as
+`fetch_instance/3` returns them. A handler that changes the instance needs
+the key, because `assign/3` puts the new struct into the assign of that key.
+A struct of a widget does not always contain its own key.
 
 ## The messages of the widget in the guide
 
@@ -401,8 +430,12 @@ shows it.
 The option `:prefix` is also a literal string. With a module attribute,
 Quokka, the formatter plugin of this repository, changed the `use` into code
 that did not compile. A widget gives `event_prefix/0` to
-`ShoddyPhoenix.LiveView.Widgets.route_events/3`, so the name occurs one time
+`ShoddyPhoenix.LiveView.Widgets.route_events/4`, so the name occurs one time
 only.
+
+The check reads `handle_event/4` too. The handler of
+`ShoddyPhoenix.LiveView.Widgets.route_instance_events/5` has four
+arguments, and its first argument is the action, as in `handle_event/3`.
 
 ### The check runs after the compile
 
