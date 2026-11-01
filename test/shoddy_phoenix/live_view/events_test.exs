@@ -305,6 +305,49 @@ defmodule ShoddyPhoenix.LiveView.EventsTest do
     end
   end
 
+  describe "a widget with instances" do
+    test "reads the clauses of handle_event/4, and names that function in the warning" do
+      warnings =
+        compile_warnings("InstanceWidget", """
+        defmodule ShoddyPhoenix.LiveView.EventsTest.InstanceWidget do
+          use Phoenix.Component
+          use ShoddyPhoenix.LiveView.Events, prefix: "chat"
+
+          def render(assigns) do
+            ~H\"\"\"
+            <button phx-click={event("send")}>Send</button>
+            <button phx-click={event("sned")}>Send</button>
+            \"\"\"
+          end
+
+          def handle_event("send", _params, _instance, socket), do: {:noreply, socket}
+        end
+        """)
+
+      assert warnings =~ "InstanceWidget has no clause of handle_event/4 for the event \"sned\""
+      refute warnings =~ ~s(event "send")
+    end
+
+    test "reads both functions in a module with handle_event/3 and handle_event/4" do
+      warnings =
+        compile_warnings("BothArities", """
+        defmodule ShoddyPhoenix.LiveView.EventsTest.BothArities do
+          use Phoenix.Component
+          use ShoddyPhoenix.LiveView.Events
+
+          def names, do: [event("a"), event("b"), event("c")]
+
+          def handle_event("a", _params, socket), do: {:noreply, socket}
+          def handle_event("b", _params, _instance, socket), do: {:noreply, socket}
+        end
+        """)
+
+      assert warnings =~ "BothArities has no clause of handle_event/3 for the event \"c\""
+      refute warnings =~ ~s(event "a")
+      refute warnings =~ ~s(event "b")
+    end
+  end
+
   describe "the option :prefix" do
     defp widget(name, prefix, clauses) do
       """

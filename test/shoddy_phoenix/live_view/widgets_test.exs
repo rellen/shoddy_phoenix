@@ -40,7 +40,7 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
     assert {error.module, error.function} == {Widgets, function}
   end
 
-  describe "route_events/3" do
+  describe "route_events/4" do
     test "accepts a second call from the module that uses the name" do
       socket = Widgets.route_events(hook_socket(), "chat", &handle_event/3)
 
@@ -69,6 +69,86 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
 
       assert_clause_error(:route_events, fn ->
         Widgets.route_events(hook_socket(), "chat", opaque(fn _action, _params -> :ok end))
+      end)
+    end
+
+    test "raises FunctionClauseError for options that are not a list" do
+      assert_clause_error(:route_events, fn ->
+        Widgets.route_events(hook_socket(), "chat", &handle_event/3, opaque(%{actions: ["send"]}))
+      end)
+    end
+
+    test "raises ArgumentError for an unknown option or for wrong actions" do
+      assert_raise ArgumentError, ~r/unknown keys \[:action\]/, fn ->
+        Widgets.route_events(hook_socket(), "chat", &handle_event/3, action: ["send"])
+      end
+
+      for actions <- [[], "send", [:send], ["send", 1]] do
+        assert_raise ArgumentError, ~r/the option :actions must be a list of strings with at least one string/, fn ->
+          Widgets.route_events(hook_socket(), "chat", &handle_event/3, actions: opaque(actions))
+        end
+      end
+    end
+  end
+
+  describe "route_instance_events/5" do
+    defp handle_instance(_action, _params, _instance, socket), do: {:noreply, socket}
+
+    test "accepts a second call from the module that uses the name" do
+      socket = Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4)
+
+      assert %Socket{} = Widgets.route_events(socket, "chat", &handle_event/3)
+    end
+
+    test "raises ArgumentError for a name that a handler of another module uses" do
+      socket = Widgets.route_events(hook_socket(), "chat", &OtherWidget.handle_event/3)
+
+      assert_raise ArgumentError,
+                   ~r/the widget name "chat" belongs to ShoddyPhoenix.LiveView.WidgetsTest.OtherWidget/,
+                   fn ->
+                     Widgets.route_instance_events(socket, "chat", ChatWidget, &handle_instance/4)
+                   end
+    end
+
+    test "raises ArgumentError for a wrong name, option, list of actions or parameter" do
+      assert_raise ArgumentError, ~r/must be a string that is not empty and that contains no colon/, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat:x", ChatWidget, &handle_instance/4)
+      end
+
+      assert_raise ArgumentError, ~r/unknown keys \[:params\]/, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4, params: "id")
+      end
+
+      assert_raise ArgumentError, ~r/the option :actions must be a list of strings/, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4, actions: opaque([]))
+      end
+
+      for param <- [:id, nil, 1] do
+        assert_raise ArgumentError, ~r/the option :param must be a string/, fn ->
+          Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4, param: opaque(param))
+        end
+      end
+    end
+
+    test "raises FunctionClauseError for a wrong socket, name, module, handler or options" do
+      assert_clause_error(:route_instance_events, fn ->
+        Widgets.route_instance_events(opaque(%{}), "chat", ChatWidget, &handle_instance/4)
+      end)
+
+      assert_clause_error(:route_instance_events, fn ->
+        Widgets.route_instance_events(hook_socket(), opaque(:chat), ChatWidget, &handle_instance/4)
+      end)
+
+      assert_clause_error(:route_instance_events, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat", opaque("ChatWidget"), &handle_instance/4)
+      end)
+
+      assert_clause_error(:route_instance_events, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, opaque(&handle_event/3))
+      end)
+
+      assert_clause_error(:route_instance_events, fn ->
+        Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4, opaque(%{}))
       end)
     end
   end
@@ -176,6 +256,15 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
       refute render(view) =~ "<li>"
     end
 
+    test "ignores an action that the widget does not have, with no crash", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/chat")
+
+      render_submit(view, "chat:clear", %{"instance" => "left_chat", "message" => "x"})
+
+      refute render(view) =~ "<li>"
+      assert view |> element("#pings") |> render() =~ "pings 0"
+    end
+
     test "sends an event with another name to the LiveView", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/chat")
 
@@ -265,6 +354,57 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
                catch_exit(render_hook(view, "probe:wrong", %{}))
 
       assert message =~ ~s(the event handler of the widget "probe" must return)
+    end
+  end
+
+  describe "the option :actions" do
+    test "sends a listed action to the handler" do
+      {:ok, view, _html} = live(build_conn(), "/actions")
+
+      assert render_hook(view, "probe:count", %{}) =~ "widget 1 live_view 0"
+    end
+
+    test "halts each other action with no crash, and the LiveView does not get it" do
+      {:ok, view, _html} = live(build_conn(), "/actions")
+
+      for event <- ["probe:other", "probe:", "probe:count:x"] do
+        render_hook(view, event, %{})
+      end
+
+      assert render(view) =~ "widget 0 live_view 0"
+    end
+
+    test "sends an event with another name to the LiveView" do
+      {:ok, view, _html} = live(build_conn(), "/actions")
+
+      assert render_hook(view, "other", %{}) =~ "widget 0 live_view 1"
+    end
+  end
+
+  describe "the instance events of a widget" do
+    test "give the handler the key and the struct of the instance that the parameter names" do
+      {:ok, view, _html} = live(build_conn(), "/counters")
+
+      render_hook(view, "counter:inc", %{"id" => "left"})
+      render_hook(view, "counter:inc", %{"id" => "left"})
+
+      assert render_hook(view, "counter:inc", %{"id" => "right"}) =~ "left 2 right 1 live_view 0"
+    end
+
+    test "halt an event that names no instance, with no crash" do
+      {:ok, view, _html} = live(build_conn(), "/counters")
+
+      for params <- [%{}, %{"id" => "middle"}, %{"id" => "live_view"}, %{"id" => "flash"}, %{"instance" => "left"}] do
+        render_hook(view, "counter:inc", params)
+      end
+
+      assert render(view) =~ "left 0 right 0 live_view 0"
+    end
+
+    test "halt an action that is not in the list before the handler runs" do
+      {:ok, view, _html} = live(build_conn(), "/counters")
+
+      assert render_hook(view, "counter:dec", %{"id" => "left"}) =~ "left 0 right 0 live_view 0"
     end
   end
 end

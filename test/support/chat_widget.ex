@@ -19,7 +19,7 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
     socket
     |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
-    |> Widgets.route_events(event_prefix(), &handle_event/3)
+    |> Widgets.route_instance_events(event_prefix(), __MODULE__, &handle_event/4, actions: ["send"])
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end
 
@@ -48,16 +48,15 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
     """
   end
 
-  defp handle_event("send", %{"instance" => instance, "message" => message}, socket) when is_binary(message) do
-    with {:ok, {_key, state}} <- Widgets.fetch_instance(socket, __MODULE__, instance),
-         message when message != "" <- String.trim(message) do
+  defp handle_event("send", %{"message" => message}, {_key, state}, socket) when is_binary(message) do
+    with message when message != "" <- String.trim(message) do
       Phoenix.PubSub.broadcast(@pubsub, state.topic, {__MODULE__, state.topic, message})
     end
 
     {:noreply, socket}
   end
 
-  defp handle_event("send", _params, socket), do: {:noreply, socket}
+  defp handle_event("send", _params, _instance, socket), do: {:noreply, socket}
 
   defp handle_info({__MODULE__, topic, message}, socket) do
     socket =

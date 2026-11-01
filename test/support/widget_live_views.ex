@@ -155,3 +155,73 @@ defmodule ShoddyPhoenix.Test.NestedLive do
 
   def render(assigns), do: ~H|<div>{live_render(@socket, @child, id: "nested")}</div>|
 end
+
+defmodule ShoddyPhoenix.Test.ActionsLive do
+  @moduledoc false
+  # The handler of the widget "probe" has a clause for the action "count"
+  # only. The option :actions halts each other action, so the LiveView does
+  # not crash. The LiveView counts each event that reaches it.
+  use Phoenix.LiveView
+
+  alias ShoddyPhoenix.LiveView.Widgets
+
+  def mount(_params, _session, socket) do
+    socket =
+      socket
+      |> assign(widget: 0, live_view: 0)
+      |> Widgets.route_events("probe", &handle_probe/3, actions: ["count"])
+
+    {:ok, socket}
+  end
+
+  defp handle_probe("count", _params, socket), do: {:noreply, update(socket, :widget, &(&1 + 1))}
+
+  def handle_event(_event, _params, socket), do: {:noreply, update(socket, :live_view, &(&1 + 1))}
+
+  def render(assigns), do: ~H"<p>widget {@widget} live_view {@live_view}</p>"
+end
+
+defmodule ShoddyPhoenix.Test.CountersWidget do
+  @moduledoc false
+  # Each instance of this widget is a counter in an assign of the LiveView.
+  # The events name the instance in the parameter "id", and the handler has
+  # a clause for the action "inc" only.
+  use Phoenix.Component
+
+  alias ShoddyPhoenix.LiveView.Widgets
+
+  defstruct [:key, count: 0]
+
+  def assign_widget(socket, key) do
+    socket
+    |> assign(key, %__MODULE__{key: key})
+    |> Widgets.route_instance_events("counter", __MODULE__, &handle_event/4, param: "id", actions: ["inc"])
+  end
+
+  defp handle_event("inc", _params, {key, counter}, socket) do
+    {:noreply, assign(socket, key, %{counter | count: counter.count + 1})}
+  end
+end
+
+defmodule ShoddyPhoenix.Test.CountersLive do
+  @moduledoc false
+  # This LiveView has two counters, and it counts each event that reaches
+  # it.
+  use Phoenix.LiveView
+
+  alias ShoddyPhoenix.Test.CountersWidget
+
+  def mount(_params, _session, socket) do
+    socket =
+      socket
+      |> assign(:live_view, 0)
+      |> CountersWidget.assign_widget(:left)
+      |> CountersWidget.assign_widget(:right)
+
+    {:ok, socket}
+  end
+
+  def handle_event(_event, _params, socket), do: {:noreply, update(socket, :live_view, &(&1 + 1))}
+
+  def render(assigns), do: ~H"<p>left {@left.count} right {@right.count} live_view {@live_view}</p>"
+end

@@ -54,8 +54,11 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     name. Then the module has no check, because the check cannot know which
     names that clause handles.
 
-    The check reads the clauses of `handle_event/3` in the module itself. A
-    widget can define that function as a private function. The check works in
+    The check reads the clauses of `handle_event/3` and of `handle_event/4`
+    in the module itself. A widget can define these functions as private
+    functions. The handler of
+    `ShoddyPhoenix.LiveView.Widgets.route_instance_events/5` is a
+    `handle_event/4`, and its first argument is also the action. The check works in
     a LiveView, in a LiveComponent, and in a module of a widget.
     The template can be in the module or in a separate `.heex` file.
 
@@ -80,7 +83,8 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
 
     ## The events of a widget
 
-    A widget handles its events with `ShoddyPhoenix.LiveView.Widgets.route_events/3`.
+    A widget handles its events with `ShoddyPhoenix.LiveView.Widgets.route_events/4`
+    or `ShoddyPhoenix.LiveView.Widgets.route_instance_events/5`.
     The hook of that function removes the name of the widget and the colon,
     and the handler receives the rest. Give the name of the widget with the
     option `:prefix`:
@@ -93,8 +97,13 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     clause of `handle_event/3` for `"send"`. The prefix obeys the rules of the
     name of a widget: it is not empty, and it contains no colon.
 
-    Give `event_prefix/0` to `route_events/3`. Then the name of the widget
+    Give `event_prefix/0` to `route_events/4`. Then the name of the widget
     occurs one time only, and the two names cannot be different.
+
+    A client can send an event with each action. Do not give the handler a
+    last clause that accepts each action, because such a clause stops the
+    check. Give the list of the actions to the option `:actions` of
+    `route_events/4` instead. The hook then halts each other action.
 
     The prefix must be a literal string. A module attribute is not
     permitted, because a formatter plugin such as Quokka can change such a
@@ -190,7 +199,7 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     Returns the prefix of the option `:prefix`.
 
     A widget gives the same name to
-    `ShoddyPhoenix.LiveView.Widgets.route_events/3`, so the name occurs one
+    `ShoddyPhoenix.LiveView.Widgets.route_events/4`, so the name occurs one
     time only:
 
     ```elixir
@@ -264,7 +273,7 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
               name not in names,
               not Enum.any?(prefixes, &String.starts_with?(name, &1)) do
             IO.warn(
-              "#{inspect(module)} has no clause of handle_event/3 for the event #{inspect(name)}",
+              "#{inspect(module)} has no clause of #{handler_name(module)} for the event #{inspect(name)}",
               file: file,
               line: line
             )
@@ -277,19 +286,28 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     # Returns :any if a clause can handle each name. Otherwise returns the
     # literal names and the prefixes of the clauses.
     defp handled(module) do
-      case Module.get_definition(module, {:handle_event, 3}) do
-        nil ->
-          {[], []}
+      clauses =
+        for arity <- [3, 4],
+            {:v1, _kind, _meta, arity_clauses} <- [Module.get_definition(module, {:handle_event, arity})],
+            clause <- arity_clauses,
+            do: clause
 
-        {:v1, _kind, _meta, clauses} ->
-          clauses
-          |> Enum.map(fn {_meta, [first | _rest], _guards, _body} -> pattern(first) end)
-          |> Enum.reduce_while({[], []}, fn
-            :any, _acc -> {:halt, :any}
-            {:name, name}, {names, prefixes} -> {:cont, {[name | names], prefixes}}
-            {:prefix, prefix}, {names, prefixes} -> {:cont, {names, [prefix | prefixes]}}
-          end)
-      end
+      clauses
+      |> Enum.map(fn {_meta, [first | _rest], _guards, _body} -> pattern(first) end)
+      |> Enum.reduce_while({[], []}, fn
+        :any, _acc -> {:halt, :any}
+        {:name, name}, {names, prefixes} -> {:cont, {[name | names], prefixes}}
+        {:prefix, prefix}, {names, prefixes} -> {:cont, {names, [prefix | prefixes]}}
+      end)
+    end
+
+    # A widget of ShoddyPhoenix.LiveView.Widgets.route_instance_events/5 has
+    # handle_event/4 and no handle_event/3. The warning names the function
+    # that the module has.
+    defp handler_name(module) do
+      if Module.defines?(module, {:handle_event, 4}) and not Module.defines?(module, {:handle_event, 3}),
+        do: "handle_event/4",
+        else: "handle_event/3"
     end
 
     # The definition has the expanded form of each head. The expanded form of
