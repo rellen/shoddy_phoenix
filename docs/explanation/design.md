@@ -263,6 +263,42 @@ The HTTP response has a placeholder, and the connected render has the full
 template. `when_not_connected/2` exists for that case, and its documentation
 starts with a warning about the other cases.
 
+## The order of the subscription and the read
+
+A LiveView that shows the state of a topic does two steps in its connected
+mount. It reads the state, and it subscribes to the topic. These steps are
+not one operation, so another process can change the state between them.
+
+The order decides what happens to such a change:
+
+- If the LiveView reads first, the change is not in the state that it read.
+  PubSub sends the message of the change before the subscription, so the
+  LiveView never gets it. Nothing shows the problem, and the page keeps the
+  old state until the next change.
+- If the LiveView subscribes first, the change is in the state that it
+  reads. The message of the change also arrives. The LiveView sees the
+  change two times, but it loses nothing.
+
+The second fault is easy to correct, and the first is not. A `handle_info/2`
+that replaces an item by its id changes nothing for the second copy. No code
+in the LiveView can get back a message that it did not receive. Thus each
+example of this library subscribes first.
+
+Some examples assign an empty list, and they read nothing. They can assign
+before the subscription with no fault, but they subscribe first too. A
+reader often copies an example and replaces the empty list with a read. The
+copy then has the correct order.
+
+The library has no function that sets the order, such as a function that
+subscribes and then calls a function that reads. Such a function corrects
+only the order. Each LiveView must still make `handle_info/2` accept a
+message that it already has, and only the application knows how to compare
+two items. The two steps in a pipeline, with the documentation, are enough.
+
+The tests show both faults in a real LiveView. A test store in
+`test/support` can change its state before or after the read of the
+connected mount.
+
 ## The name of the LiveView module
 
 Shoddy gives some modules a name in the plural, such as `Shoddy.Maps`. Thus

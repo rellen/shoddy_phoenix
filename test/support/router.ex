@@ -5,6 +5,7 @@ defmodule ShoddyPhoenix.Test.Router do
   import Phoenix.LiveView.Router
 
   alias ShoddyPhoenix.Test.ActionsLive
+  alias ShoddyPhoenix.Test.AppendLive
   alias ShoddyPhoenix.Test.AsyncLive
   alias ShoddyPhoenix.Test.ChatLive
   alias ShoddyPhoenix.Test.ConnectedOnlyLive
@@ -18,6 +19,7 @@ defmodule ShoddyPhoenix.Test.Router do
   alias ShoddyPhoenix.Test.PlaceholderLive
   alias ShoddyPhoenix.Test.ProbeHook
   alias ShoddyPhoenix.Test.ProbeLive
+  alias ShoddyPhoenix.Test.ReadFirstLive
   alias ShoddyPhoenix.Test.ReplyLive
   alias ShoddyPhoenix.Test.SubscribeLive
 
@@ -33,6 +35,8 @@ defmodule ShoddyPhoenix.Test.Router do
     live "/lost-assign", LostAssignLive
     live "/async", AsyncLive
     live "/subscribe", SubscribeLive
+    live "/read-first", ReadFirstLive
+    live "/append", AppendLive
     live "/connected-only", ConnectedOnlyLive
     live "/hook-order", HookOrderLive
     live "/params-hook", ParamsHookLive

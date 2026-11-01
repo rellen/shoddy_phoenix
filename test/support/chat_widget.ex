@@ -17,8 +17,8 @@ defmodule ShoddyPhoenix.Test.ChatWidget do
 
   def assign_widget(socket, key, topic) do
     socket
-    |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
+    |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Widgets.route_instance_events(event_prefix(), __MODULE__, &handle_event/4, actions: ["send"])
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end

@@ -9,8 +9,11 @@ Application.put_env(:shoddy_phoenix, ShoddyPhoenix.Test.Endpoint,
 {:ok, _pid} = ShoddyPhoenix.Test.Endpoint.start_link()
 
 # The example of ShoddyPhoenix.LiveView subscribes to a topic of this PubSub
-# server.
-{:ok, _pid} = Supervisor.start_link([{Phoenix.PubSub, name: ShoddyPhoenix.Test.PubSub}], strategy: :one_for_one)
+# server, and it reads its messages from the store ShoddyPhoenix.Test.Messages.
+{:ok, _pid} =
+  Supervisor.start_link([{Phoenix.PubSub, name: ShoddyPhoenix.Test.PubSub}, ShoddyPhoenix.Test.Messages],
+    strategy: :one_for_one
+  )
 
 # The LiveViews of the tests write log messages, and one test makes a
 # LiveView crash. ExUnit shows the log of a test only when the test fails.
