@@ -49,8 +49,8 @@ Add a function that puts an instance into the socket:
 ```elixir
   def assign_widget(socket, key, topic) do
     socket
-    |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Subscriptions.subscribe(@pubsub, topic, key)
+    |> assign(key, %__MODULE__{key: key, topic: topic})
     |> Widgets.route_instance_events(event_prefix(), __MODULE__, &handle_event/4, actions: ["send"])
     |> LiveView.put_hook({__MODULE__, :info}, :handle_info, &handle_info/2)
   end
@@ -61,6 +61,12 @@ Each step prevents one problem:
 - `Subscriptions.subscribe/4` records the key as an owner of the topic. Two
   instances on one topic give the LiveView one subscription, so each message
   arrives one time. The function does nothing in the disconnected render.
+- The subscription comes before the assign. This widget starts with no
+  messages. A widget that reads its first state, for example the last
+  messages of the topic, must read after the subscription. Otherwise it
+  loses each message between the read and the subscription.
+  [Do work only after a LiveView connects](do-work-only-after-a-liveview-connects.md)
+  tells more.
 - `Widgets.route_instance_events/5` sends each event with a name that
   starts with `"chat:"` to `handle_event/4` of the widget. The LiveView
   never receives these events. `event_prefix()` returns `"chat"`, so the

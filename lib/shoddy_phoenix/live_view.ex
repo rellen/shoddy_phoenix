@@ -25,8 +25,8 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     def mount(_params, _session, socket) do
       socket =
         socket
-        |> assign(:messages, [])
         |> LiveView.when_connected(&subscribe/1)
+        |> assign(:messages, MyApp.Messages.list_recent())
 
       {:ok, socket}
     end
@@ -40,6 +40,9 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     Read [the two renders](#module-the-two-renders) before you use these
     functions. A LiveView can mount two times, and the second mount does not
     get the assigns of the first mount.
+
+    The example subscribes first, and then it reads the messages.
+    [Subscribe before you read](#module-subscribe-before-you-read) tells why.
 
     ## Usage
 
@@ -89,6 +92,39 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
       connected process. In these callbacks, `when_connected/2` always calls
       its function, and `when_not_connected/2` never calls it.
 
+    ## Subscribe before you read
+
+    A LiveView often reads the state that a PubSub topic changes, and it
+    subscribes to that topic. Do these steps in this order:
+
+    1. Subscribe to the topic.
+    2. Read the state, and assign it.
+
+    The other order loses a change. A change after the read and before the
+    subscription is not in the state that the LiveView read. The LiveView
+    also gets no message for it. Thus the page shows the old state until the
+    next change or the next mount.
+
+    With the subscription first, a change can occur after the subscription
+    and before the read. The state that the LiveView reads then contains the
+    change, and the message of the change also arrives. Thus write
+    `handle_info/2` so that such a message changes nothing. For example,
+    replace an item by its id, and do not add the item a second time:
+
+    ```elixir
+    def handle_info({:new_message, message}, socket) do
+      {:noreply, update(socket, :messages, &put_message(&1, message))}
+    end
+
+    defp put_message(messages, message) do
+      [message | Enum.reject(messages, &(&1.id == message.id))]
+    end
+    ```
+
+    The order is important only in the connected mount. The disconnected
+    render does not subscribe, and LiveView replaces its HTML at the
+    connected render.
+
     ## The function must return a socket
 
     `when_connected/2` and `when_not_connected/2` call their function with the
@@ -134,11 +170,15 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
     LiveView, such as a subscription to a PubSub topic or a timer:
 
         socket
-        |> assign(:messages, [])
         |> LiveView.when_connected(fn socket ->
           Phoenix.PubSub.subscribe(MyApp.PubSub, "messages")
           socket
         end)
+        |> assign(:messages, MyApp.Messages.list_recent())
+
+    Subscribe before you read the state that the topic changes, as in the
+    example.
+    [Subscribe before you read](#module-subscribe-before-you-read) tells why.
 
     In `mount/3`, the function runs only in the connected render.
     [The two renders](#module-the-two-renders) tells when each render occurs.

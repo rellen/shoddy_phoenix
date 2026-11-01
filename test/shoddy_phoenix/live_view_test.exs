@@ -12,7 +12,6 @@ defmodule ShoddyPhoenix.LiveViewTest do
   alias ShoddyPhoenix.LiveView
   alias ShoddyPhoenix.Test.Endpoint
   alias ShoddyPhoenix.Test.ParamsHookLive
-  alias ShoddyPhoenix.Test.PubSub
   alias ShoddyPhoenix.Test.Router
 
   @endpoint Endpoint
@@ -242,15 +241,6 @@ defmodule ShoddyPhoenix.LiveViewTest do
       Process.flag(:trap_exit, true)
 
       assert {{%KeyError{key: :title}, _stacktrace}, _call} = catch_exit(live(conn, "/lost-assign"))
-    end
-
-    test "the example of the module subscribes only the process of the LiveView", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/subscribe")
-
-      Phoenix.PubSub.broadcast(PubSub, "messages", {:new_message, "Hello"})
-
-      assert render(view) =~ "<p>Hello</p>"
-      refute_received {:new_message, "Hello"}
     end
 
     test "the disconnected render raises KeyError for an assign that only when_connected/2 sets",

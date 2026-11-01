@@ -149,8 +149,8 @@ defmodule GuardedNewsLive do
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:headlines, [])
       |> LiveView.when_connected(&subscribe/1)
+      |> assign(:headlines, [])
 
     {:ok, socket}
   end
@@ -192,6 +192,13 @@ The function of `when_connected/2` must return the socket.
 `Phoenix.PubSub.subscribe/2` returns `:ok`, so `subscribe/1` returns the
 socket after that call.
 
+The LiveView subscribes, and then it assigns the headlines. This LiveView
+starts with no headlines. A LiveView that reads the headlines from a store
+must read after the subscription. Otherwise it loses each headline between
+the read and the subscription.
+[Do work only after a LiveView connects](../how-to/do-work-only-after-a-liveview-connects.md)
+tells more.
+
 Run the script again. The output ends with `2 tests, 0 failures`.
 `refute_received` succeeds, so the process of the HTTP request did not
 subscribe.
@@ -220,15 +227,15 @@ defmodule TwoPartNewsLive do
   # The headline list shows each headline.
   defp add_headline_list(socket) do
     socket
-    |> assign(:headlines, [])
     |> LiveView.when_connected(&subscribe/1)
+    |> assign(:headlines, [])
   end
 
   # The counter counts the headlines.
   defp add_counter(socket) do
     socket
-    |> assign(:count, 0)
     |> LiveView.when_connected(&subscribe/1)
+    |> assign(:count, 0)
   end
 
   defp subscribe(socket) do
@@ -301,15 +308,15 @@ defmodule NewsLive do
   # The headline list shows each headline.
   defp add_headline_list(socket) do
     socket
-    |> assign(:headlines, [])
     |> Subscriptions.subscribe(News.PubSub, "headlines", :headline_list)
+    |> assign(:headlines, [])
   end
 
   # The counter counts the headlines.
   defp add_counter(socket) do
     socket
-    |> assign(:count, 0)
     |> Subscriptions.subscribe(News.PubSub, "headlines", :counter)
+    |> assign(:count, 0)
   end
 
   def handle_info({:headline, headline}, socket) do
