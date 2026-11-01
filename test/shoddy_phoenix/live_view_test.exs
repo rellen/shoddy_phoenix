@@ -3,6 +3,7 @@ defmodule ShoddyPhoenix.LiveViewTest do
 
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
+  import Shoddy.Tagging, only: [cont: 1]
 
   alias Phoenix.Component
   alias Phoenix.LiveComponent.CID
@@ -111,7 +112,7 @@ defmodule ShoddyPhoenix.LiveViewTest do
     # mounted.
     defp hook_socket, do: %Socket{router: Router, private: %{lifecycle: %Lifecycle{}}}
 
-    defp on_event(_event, _params, socket), do: {:cont, socket}
+    defp on_event(_event, _params, socket), do: cont(socket)
 
     test "replaces a hook with the same id and stage, where attach_hook/4 raises" do
       socket = LiveView.put_hook(hook_socket(), :hook, :handle_event, &on_event/3)
@@ -126,10 +127,10 @@ defmodule ShoddyPhoenix.LiveViewTest do
     test "accepts the arity of the table for each stage" do
       socket =
         hook_socket()
-        |> LiveView.put_hook(:hook, :handle_event, fn _event, _params, socket -> {:cont, socket} end)
-        |> LiveView.put_hook(:hook, :handle_params, fn _params, _uri, socket -> {:cont, socket} end)
-        |> LiveView.put_hook(:hook, :handle_async, fn _key, _result, socket -> {:cont, socket} end)
-        |> LiveView.put_hook(:hook, :handle_info, fn _message, socket -> {:cont, socket} end)
+        |> LiveView.put_hook(:hook, :handle_event, fn _event, _params, socket -> cont(socket) end)
+        |> LiveView.put_hook(:hook, :handle_params, fn _params, _uri, socket -> cont(socket) end)
+        |> LiveView.put_hook(:hook, :handle_async, fn _key, _result, socket -> cont(socket) end)
+        |> LiveView.put_hook(:hook, :handle_info, fn _message, socket -> cont(socket) end)
         |> LiveView.put_hook(:hook, :after_render, fn socket -> socket end)
 
       assert %Socket{} = socket
@@ -156,7 +157,7 @@ defmodule ShoddyPhoenix.LiveViewTest do
       end
 
       assert_raise FunctionClauseError, fn ->
-        LiveView.put_hook(opaque(%{}), :hook, :handle_info, fn _message, socket -> {:cont, socket} end)
+        LiveView.put_hook(opaque(%{}), :hook, :handle_info, fn _message, socket -> cont(socket) end)
       end
     end
 
@@ -187,7 +188,7 @@ defmodule ShoddyPhoenix.LiveViewTest do
       socket = %{hook_socket() | assigns: %{__changed__: %{}, myself: %CID{cid: 1}}}
 
       assert_raise ArgumentError, ~r/lifecycle hooks are not supported on stateful components/, fn ->
-        LiveView.put_hook(socket, :hook, :handle_info, fn _message, socket -> {:cont, socket} end)
+        LiveView.put_hook(socket, :hook, :handle_info, fn _message, socket -> cont(socket) end)
       end
     end
   end

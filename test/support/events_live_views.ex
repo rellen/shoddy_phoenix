@@ -4,7 +4,9 @@ defmodule ShoddyPhoenix.Test.EventsComponent do
   use Phoenix.LiveComponent
   use ShoddyPhoenix.LiveView.Events
 
-  def mount(socket), do: {:ok, assign(socket, :likes, 0)}
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
+  def mount(socket), do: socket |> assign(:likes, 0) |> ok()
 
   def render(assigns) do
     ~H"""
@@ -15,7 +17,7 @@ defmodule ShoddyPhoenix.Test.EventsComponent do
     """
   end
 
-  def handle_event("like", _params, socket), do: {:noreply, update(socket, :likes, &(&1 + 1))}
+  def handle_event("like", _params, socket), do: socket |> update(:likes, &(&1 + 1)) |> noreply()
 end
 
 defmodule ShoddyPhoenix.Test.CounterLive do

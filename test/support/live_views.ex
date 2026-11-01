@@ -20,10 +20,12 @@ end
 
 defmodule ShoddyPhoenix.Test.ProbeHook do
   @moduledoc false
+  import Shoddy.Tagging, only: [cont: 1]
+
   alias ShoddyPhoenix.Test.Probe
 
   def on_mount(:default, _params, %{"test_pid" => test_pid}, socket) do
-    {:cont, Probe.report(socket, test_pid, :on_mount)}
+    socket |> Probe.report(test_pid, :on_mount) |> cont()
   end
 end
 
@@ -31,10 +33,12 @@ defmodule ShoddyPhoenix.Test.ProbeComponent do
   @moduledoc false
   use Phoenix.LiveComponent
 
+  import Shoddy.Tagging, only: [ok: 1]
+
   alias ShoddyPhoenix.Test.Probe
 
   def update(assigns, socket) do
-    {:ok, socket |> assign(assigns) |> Probe.report(assigns.test_pid, :component_update)}
+    socket |> assign(assigns) |> Probe.report(assigns.test_pid, :component_update) |> ok()
   end
 
   def render(assigns), do: ~H"<p>Component</p>"
@@ -44,23 +48,25 @@ defmodule ShoddyPhoenix.Test.ProbeLive do
   @moduledoc false
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.Test.Probe
   alias ShoddyPhoenix.Test.ProbeComponent
 
   def mount(_params, %{"test_pid" => test_pid}, socket) do
-    {:ok, socket |> assign(:test_pid, test_pid) |> Probe.report(test_pid, :mount)}
+    socket |> assign(:test_pid, test_pid) |> Probe.report(test_pid, :mount) |> ok()
   end
 
   def handle_params(_params, _uri, socket) do
-    {:noreply, Probe.report(socket, socket.assigns.test_pid, :handle_params)}
+    socket |> Probe.report(socket.assigns.test_pid, :handle_params) |> noreply()
   end
 
   def handle_event("probe", _params, socket) do
-    {:noreply, Probe.report(socket, socket.assigns.test_pid, :handle_event)}
+    socket |> Probe.report(socket.assigns.test_pid, :handle_event) |> noreply()
   end
 
   def handle_info(:probe, socket) do
-    {:noreply, Probe.report(socket, socket.assigns.test_pid, :handle_info)}
+    socket |> Probe.report(socket.assigns.test_pid, :handle_info) |> noreply()
   end
 
   def render(assigns) do
@@ -97,10 +103,12 @@ defmodule ShoddyPhoenix.Test.LostAssignLive do
   # This LiveView assigns the title only in the disconnected render.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [ok: 1]
+
   alias ShoddyPhoenix.LiveView
 
   def mount(_params, _session, socket) do
-    {:ok, LiveView.when_not_connected(socket, &assign(&1, :title, "Disconnected title"))}
+    socket |> LiveView.when_not_connected(&assign(&1, :title, "Disconnected title")) |> ok()
   end
 
   def render(assigns), do: ~H"<h1>{@title}</h1>"
@@ -112,6 +120,8 @@ defmodule ShoddyPhoenix.Test.AsyncLive do
   # the LiveView started the task.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   def mount(_params, %{"test_pid" => test_pid}, socket) do
     connected? = connected?(socket)
 
@@ -119,14 +129,14 @@ defmodule ShoddyPhoenix.Test.AsyncLive do
       socket
       |> assign_async(:data, fn ->
         send(test_pid, {:assign_async, connected?})
-        {:ok, %{data: "Loaded"}}
+        ok(%{data: "Loaded"})
       end)
       |> start_async(:job, fn -> send(test_pid, {:start_async, connected?}) end)
 
-    {:ok, socket}
+    ok(socket)
   end
 
-  def handle_async(:job, _result, socket), do: {:noreply, socket}
+  def handle_async(:job, _result, socket), do: noreply(socket)
 
   def render(assigns) do
     ~H"""
@@ -172,10 +182,12 @@ defmodule ShoddyPhoenix.Test.ConnectedOnlyLive do
   # template needs them in each render.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [ok: 1]
+
   alias ShoddyPhoenix.LiveView
 
   def mount(_params, _session, socket) do
-    {:ok, LiveView.when_connected(socket, &assign(&1, :messages, []))}
+    socket |> LiveView.when_connected(&assign(&1, :messages, [])) |> ok()
   end
 
   def render(assigns), do: ~H"<p :for={message <- @messages}>{message}</p>"

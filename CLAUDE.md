@@ -80,6 +80,9 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
   operates on the socket of a LiveView through a LiveView in `test/support`,
   with `Phoenix.LiveViewTest.live/2`. Give each claim of a `@doc` or a
   `@moduledoc` a test.
+- In a test file, and in a module of `test/support` that exists only for the
+  tests, return a tagged tuple with `Shoddy.Tagging`. A module that is the
+  example of a document keeps the tuple of the document.
 - Test a macro that examines code at the compile time with
   `Code.compile_string/2`. Read the warnings with
   `ShoddyPhoenix.Test.Warnings.collect/1`, not from the standard error.

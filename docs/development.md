@@ -107,6 +107,13 @@ LiveViews of the tests. Only the test environment compiles it.
 `test/test_helper.exs` starts the endpoint. `Phoenix.LiveViewTest.live/2`
 needs the test dependency `lazy_html`.
 
+A test file, and a module of `test/support` that exists only for the tests,
+return a tagged tuple with `Shoddy.Tagging`. An example is
+`socket |> assign(:count, 0) |> ok()`. Import only the functions that the
+module uses, with `import Shoddy.Tagging, only: [...]`. A module that is the
+example of a document keeps the tuple of the document. Shoddy is a test
+dependency, so only the test environment has it.
+
 To find a gap in the tests, run mutation testing:
 
 ```sh

@@ -106,6 +106,10 @@ defmodule ShoddyPhoenix.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # Phoenix.LiveViewTest needs lazy_html to render a LiveView in a test.
       {:lazy_html, "~> 0.1.0", only: :test},
+      # The modules of test/support that exist only for the tests return their
+      # tagged tuples with Shoddy.Tagging. Shoddy is not on Hex. A project that
+      # uses ShoddyPhoenix does not get Shoddy, because it is a test dependency.
+      {:shoddy, github: "rellen/shoddy", only: :test},
       {:doctor, "~> 0.23.0", only: :dev, runtime: false},
       {:ex_check, "~> 0.16.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.40.1", only: :dev, runtime: false},

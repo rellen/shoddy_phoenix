@@ -30,30 +30,30 @@ defmodule ShoddyPhoenix.Test.ChatLive do
   # The other callbacks exist only for the tests.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.Test.ChatWidget
 
   def mount(_params, %{"topic" => topic}, socket) do
-    socket =
-      socket
-      |> assign(:pings, 0)
-      |> ChatWidget.assign_widget(:left_chat, topic)
-      |> ChatWidget.assign_widget(:right_chat, topic)
-
-    {:ok, socket}
+    socket
+    |> assign(:pings, 0)
+    |> ChatWidget.assign_widget(:left_chat, topic)
+    |> ChatWidget.assign_widget(:right_chat, topic)
+    |> ok()
   end
 
   def handle_event("remove-left", _params, socket) do
-    {:noreply, ChatWidget.remove_widget(socket, :left_chat)}
+    socket |> ChatWidget.remove_widget(:left_chat) |> noreply()
   end
 
   def handle_event("chatter:ping", _params, socket) do
-    {:noreply, update(socket, :pings, &(&1 + 1))}
+    socket |> update(:pings, &(&1 + 1)) |> noreply()
   end
 
   # This function has a clause for one message only. A message of the widget
   # reaches it only if the hook of the widget does not halt that message, and
   # the LiveView then crashes.
-  def handle_info(:ping, socket), do: {:noreply, update(socket, :pings, &(&1 + 1))}
+  def handle_info(:ping, socket), do: socket |> update(:pings, &(&1 + 1)) |> noreply()
 
   def render(assigns) do
     ~H"""
@@ -71,17 +71,22 @@ defmodule ShoddyPhoenix.Test.ReplyLive do
   # the LiveView then receives the event "probe:count".
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.LiveView.Widgets
 
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(:receiver, "widget") |> Widgets.route_events("probe", &handle_probe/3)}
+    socket |> assign(:receiver, "widget") |> Widgets.route_events("probe", &handle_probe/3) |> ok()
   end
 
+  # Shoddy.Tagging.reply/2 takes the reply first, so a pipeline of the socket
+  # into it puts the socket in the place of the reply. Thus this clause writes
+  # the tuple.
   defp handle_probe("count", _params, socket), do: {:reply, %{count: 1}, socket}
   defp handle_probe("wrong", _params, socket), do: {:ok, socket}
 
-  def handle_event("unroute", _params, socket), do: {:noreply, Widgets.unroute_events(socket, "probe")}
-  def handle_event("probe:count", _params, socket), do: {:noreply, assign(socket, :receiver, "LiveView")}
+  def handle_event("unroute", _params, socket), do: socket |> Widgets.unroute_events("probe") |> noreply()
+  def handle_event("probe:count", _params, socket), do: socket |> assign(:receiver, "LiveView") |> noreply()
 
   def render(assigns), do: ~H"<p>Received by {@receiver}</p>"
 end
@@ -92,24 +97,24 @@ defmodule ShoddyPhoenix.Test.HookOrderLive do
   # put_hook/4 replaces the hook :first.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [cont: 1, noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.LiveView
 
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:order, [])
-      |> LiveView.put_hook(:first, :handle_event, record(:first))
-      |> LiveView.put_hook(:second, :handle_event, record(:second))
-      |> LiveView.put_hook(:first, :handle_event, record(:replacement))
-
-    {:ok, socket}
+    socket
+    |> assign(:order, [])
+    |> LiveView.put_hook(:first, :handle_event, record(:first))
+    |> LiveView.put_hook(:second, :handle_event, record(:second))
+    |> LiveView.put_hook(:first, :handle_event, record(:replacement))
+    |> ok()
   end
 
   defp record(label) do
-    fn _event, _params, socket -> {:cont, update(socket, :order, &(&1 ++ [label]))} end
+    fn _event, _params, socket -> socket |> update(:order, &(&1 ++ [label])) |> cont() end
   end
 
-  def handle_event("go", _params, socket), do: {:noreply, socket}
+  def handle_event("go", _params, socket), do: noreply(socket)
 
   def render(assigns), do: ~H|<p id="order">{Enum.join(@order, " ")}</p>|
 end
@@ -119,17 +124,17 @@ defmodule ShoddyPhoenix.Test.ParamsHookLive do
   # This LiveView attaches a :handle_params hook with put_hook/4.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [cont: 1, ok: 1]
+
   alias ShoddyPhoenix.LiveView
 
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:hooked, false)
-      |> LiveView.put_hook(:params, :handle_params, fn _params, _uri, socket ->
-        {:cont, assign(socket, :hooked, true)}
-      end)
-
-    {:ok, socket}
+    socket
+    |> assign(:hooked, false)
+    |> LiveView.put_hook(:params, :handle_params, fn _params, _uri, socket ->
+      socket |> assign(:hooked, true) |> cont()
+    end)
+    |> ok()
   end
 
   def render(assigns), do: ~H"<p>hooked {@hooked}</p>"
@@ -141,6 +146,8 @@ defmodule ShoddyPhoenix.Test.NestedLive do
   # selects the nested LiveView from a fixed list.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [ok: 1]
+
   alias ShoddyPhoenix.Test.GuideChatLive
   alias ShoddyPhoenix.Test.ParamsHookLive
 
@@ -150,7 +157,7 @@ defmodule ShoddyPhoenix.Test.NestedLive do
   }
 
   def mount(_params, %{"child" => child}, socket) do
-    {:ok, assign(socket, :child, Map.fetch!(@children, child))}
+    socket |> assign(:child, Map.fetch!(@children, child)) |> ok()
   end
 
   def render(assigns), do: ~H|<div>{live_render(@socket, @child, id: "nested")}</div>|
@@ -163,20 +170,20 @@ defmodule ShoddyPhoenix.Test.ActionsLive do
   # not crash. The LiveView counts each event that reaches it.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.LiveView.Widgets
 
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(widget: 0, live_view: 0)
-      |> Widgets.route_events("probe", &handle_probe/3, actions: ["count"])
-
-    {:ok, socket}
+    socket
+    |> assign(widget: 0, live_view: 0)
+    |> Widgets.route_events("probe", &handle_probe/3, actions: ["count"])
+    |> ok()
   end
 
-  defp handle_probe("count", _params, socket), do: {:noreply, update(socket, :widget, &(&1 + 1))}
+  defp handle_probe("count", _params, socket), do: socket |> update(:widget, &(&1 + 1)) |> noreply()
 
-  def handle_event(_event, _params, socket), do: {:noreply, update(socket, :live_view, &(&1 + 1))}
+  def handle_event(_event, _params, socket), do: socket |> update(:live_view, &(&1 + 1)) |> noreply()
 
   def render(assigns), do: ~H"<p>widget {@widget} live_view {@live_view}</p>"
 end
@@ -187,6 +194,8 @@ defmodule ShoddyPhoenix.Test.CountersWidget do
   # The events name the instance in the parameter "id", and the handler has
   # a clause for the action "inc" only.
   use Phoenix.Component
+
+  import Shoddy.Tagging, only: [noreply: 1]
 
   alias ShoddyPhoenix.LiveView.Widgets
 
@@ -199,7 +208,7 @@ defmodule ShoddyPhoenix.Test.CountersWidget do
   end
 
   defp handle_event("inc", _params, {key, counter}, socket) do
-    {:noreply, assign(socket, key, %{counter | count: counter.count + 1})}
+    socket |> assign(key, %{counter | count: counter.count + 1}) |> noreply()
   end
 end
 
@@ -209,19 +218,19 @@ defmodule ShoddyPhoenix.Test.CountersLive do
   # it.
   use Phoenix.LiveView
 
+  import Shoddy.Tagging, only: [noreply: 1, ok: 1]
+
   alias ShoddyPhoenix.Test.CountersWidget
 
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:live_view, 0)
-      |> CountersWidget.assign_widget(:left)
-      |> CountersWidget.assign_widget(:right)
-
-    {:ok, socket}
+    socket
+    |> assign(:live_view, 0)
+    |> CountersWidget.assign_widget(:left)
+    |> CountersWidget.assign_widget(:right)
+    |> ok()
   end
 
-  def handle_event(_event, _params, socket), do: {:noreply, update(socket, :live_view, &(&1 + 1))}
+  def handle_event(_event, _params, socket), do: socket |> update(:live_view, &(&1 + 1)) |> noreply()
 
   def render(assigns), do: ~H"<p>left {@left.count} right {@right.count} live_view {@live_view}</p>"
 end

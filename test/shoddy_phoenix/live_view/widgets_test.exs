@@ -1,7 +1,9 @@
 defmodule ShoddyPhoenix.LiveView.WidgetsTest.OtherWidget do
   # The handler of this module asks for a name that another module uses.
   @moduledoc false
-  def handle_event(_action, _params, socket), do: {:noreply, socket}
+  import Shoddy.Tagging, only: [noreply: 1]
+
+  def handle_event(_action, _params, socket), do: noreply(socket)
 end
 
 defmodule ShoddyPhoenix.LiveView.WidgetsTest do
@@ -9,6 +11,7 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
 
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
+  import Shoddy.Tagging, only: [noreply: 1]
 
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
@@ -30,7 +33,7 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
   # LiveView keeps the hooks in the private data of the socket.
   defp hook_socket, do: %Socket{private: %{lifecycle: %Lifecycle{}}}
 
-  defp handle_event(_action, _params, socket), do: {:noreply, socket}
+  defp handle_event(_action, _params, socket), do: noreply(socket)
 
   # Another function, such as String.contains?/2, can raise the same error
   # for a wrong argument. This helper also checks that the function of this
@@ -92,7 +95,7 @@ defmodule ShoddyPhoenix.LiveView.WidgetsTest do
   end
 
   describe "route_instance_events/5" do
-    defp handle_instance(_action, _params, _instance, socket), do: {:noreply, socket}
+    defp handle_instance(_action, _params, _instance, socket), do: noreply(socket)
 
     test "accepts a second call from the module that uses the name" do
       socket = Widgets.route_instance_events(hook_socket(), "chat", ChatWidget, &handle_instance/4)
