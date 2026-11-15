@@ -97,10 +97,6 @@ LiveView, add `use ShoddyPhoenix.LiveView.Events` to the same function.
 ShoddyPhoenix does not add Shoddy to your project. To use the functions of
 Shoddy, add `{:shoddy, github: "rellen/shoddy"}` to the list.
 
-[usage-rules.md](usage-rules.md) gives the rules of the library to an AI
-agent. The package [usage_rules](https://hexdocs.pm/usage_rules) puts that
-file into the instruction file of your application, such as `AGENTS.md`.
-
 ## Documentation
 
 The site https://rellen.github.io/shoddy_phoenix/ has the documentation of
@@ -124,6 +120,11 @@ For one task, use a how-to guide:
 - [Catch mistakes at compile time](docs/how-to/catch-mistakes-at-compile-time.md)
 
 For the facts about a function or a component, read the page of its module.
+
+For the rules that an AI agent must obey, read the reference:
+
+- [Usage rules for ShoddyPhoenix](usage-rules.md), a short list of rules for
+  an AI agent that writes code with the library
 
 For the reasons behind the design, read the explanation:
 

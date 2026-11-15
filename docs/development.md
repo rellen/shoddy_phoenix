@@ -81,8 +81,8 @@ and `lib/shoddy_phoenix/live_view.ex` uses `Phoenix.LiveView`. Without that
 dependency, the file then defines no module. `mix check` compiles the
 project without the dependency, and it fails for a warning.
 
-If a change adds a public function, or changes the correct use of one,
-update `usage-rules.md`. Start each heading of that file at level 3.
+If an AI agent can use a new function incorrectly, add one rule to
+`usage-rules.md`. Keep that file short.
 
 ## Write tests
 

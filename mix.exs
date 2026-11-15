@@ -73,13 +73,14 @@ defmodule ShoddyPhoenix.MixProject do
         "docs/how-to/do-work-only-after-a-liveview-connects.md",
         "docs/how-to/build-a-widget-with-lifecycle-hooks.md",
         "docs/how-to/catch-mistakes-at-compile-time.md",
+        "usage-rules.md",
         "docs/explanation/design.md",
         "docs/development.md"
       ],
       groups_for_extras: [
         Tutorials: ~r"docs/tutorials/",
         "How-to guides": ~r"docs/how-to/",
-        Reference: ~r"docs/reference/",
+        Reference: [~r"docs/reference/", "usage-rules.md"],
         Explanation: ~r"docs/explanation/",
         Development: ["docs/development.md"]
       ],
