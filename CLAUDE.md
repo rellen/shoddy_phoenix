@@ -196,3 +196,16 @@ https://github.com/rellen/shoddy. Obey these rules for each new function:
 - Make each feature branch from `main`.
 - Give each branch a descriptive name. Put the change type at the start of the
   name. For example: `feat/add-parser` or `fix/timeout-issue`.
+
+## Pull Requests
+
+- GitHub merges each pull request with "Rebase and merge". Keep the branch
+  of each pull request in a form that GitHub can rebase onto the base
+  branch.
+- Do not put a merge commit into the branch of a pull request. Do not merge
+  the base branch into it.
+- When the base branch changes, rebase the branch onto the base branch.
+  Then push the branch with `git push --force-with-lease`.
+- Keep one commit in each pull request, unless the maintainer asks for more.
+- Before you report that a pull request is ready, make sure that GitHub
+  shows no merge conflict.
